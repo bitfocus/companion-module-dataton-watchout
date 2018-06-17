@@ -1,8 +1,8 @@
 {
-  "name": "watchout_production",
+  "name": "watchout-production",
   "version": "0.0.1",
   "description": "Dataton Watchout Production plugin for Companion",
-  "main": "watchout_production.js",
+  "main": "watchout-production.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

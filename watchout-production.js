@@ -23,11 +23,19 @@ instance.prototype.init = function() {
 	self.init_tcp();
 };
 
+instance.prototype.updateConfig = function(config) {
+	var self = this;
+	self.config = config;
+
+	self.init_tcp();
+};
+
 instance.prototype.init_tcp = function() {
 	var self = this;
 
 	if (self.socket !== undefined) {
-		self.socket.unload();
+		self.socket.destroy();
+		delete self.socket;
 	}
 
 	if (self.config.host) {
@@ -71,6 +79,7 @@ instance.prototype.destroy = function() {
 
 	if (self.socket !== undefined) {
 		self.socket.destroy();
+		self.socket = undefined;
 	}
 
 	debug("destroy", self.id);;
@@ -254,11 +263,6 @@ instance.prototype.action = function(action) {
 			self.init_tcp();
 		}
 
-		// TODO: remove this when issue #71 is fixed
-		if (self.socket !== undefined && self.socket.host != self.config.host) {
-			self.init_tcp();
-		}
-
 		debug('sending tcp',cmd,"to",self.config.host);
 
 		if (self.socket !== undefined && self.socket.connected) {
@@ -272,7 +276,7 @@ instance.prototype.action = function(action) {
 
 instance.module_info = {
 	label: 'Dataton Watchout Production',
-	id: 'watchout_production',
+	id: 'watchout-production',
 	version: '0.0.1'
 };
 

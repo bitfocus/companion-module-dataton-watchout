@@ -113,8 +113,8 @@ instance.prototype.actions = function(system) {
 				default: ''
 			}]},
 		'reset': {
-			 label: 'Reset',
-            },
+			label: 'Reset',
+			},
 		'gototime': {
 			label: 'Jump to time',
 			options: [{
@@ -210,10 +210,10 @@ instance.prototype.action = function(action) {
 				self.log('error', 'Error: Kill command for Watchout production triggered without timeline name');
 			}
 			break;
-            
-        case 'reset':
-                cmd = 'reset\r\n'
-            break;
+
+		case 'reset':
+				cmd = 'reset\r\n'
+			break;
 
 		case 'gototime':
 			if (action.options.time != '') {

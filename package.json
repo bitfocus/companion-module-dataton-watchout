@@ -1,6 +1,12 @@
 {
   "name": "watchout-production",
-  "version": "0.0.1",
+  "legacy": ["watchout_production"],
+  "version": "1.0.0",
+	"api_version": "1.0.0",
+  "keywords": [ "Media Server", "Software", "Video" ],
+  "manufacturer": "Dataton",
+  "product": "Watchout Production",
+  "shortname": "watchout",
   "description": "Dataton Watchout Production plugin for Companion",
   "main": "watchout-production.js",
   "scripts": {

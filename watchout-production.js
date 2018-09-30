@@ -281,11 +281,5 @@ instance.prototype.action = function(action) {
 	}
 };
 
-instance.module_info = {
-	label: 'Dataton Watchout Production',
-	id: 'watchout-production',
-	version: '0.0.1'
-};
-
 instance_skel.extendedBy(instance);
 exports = module.exports = instance;

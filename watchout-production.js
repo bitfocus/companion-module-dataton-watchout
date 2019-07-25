@@ -39,7 +39,12 @@ instance.prototype.init_tcp = function() {
 	}
 
 	if (self.config.host) {
-		self.socket = new tcp(self.config.host, 3040);
+		var port = 3040;
+		if (self.config.type === 'disp') {
+			port = 3039;
+		}
+
+		self.socket = new tcp(self.config.host, port);
 
 		self.socket.on('status_change', function (status, message) {
 			self.status(status, message);
@@ -52,7 +57,10 @@ instance.prototype.init_tcp = function() {
 
 		self.socket.on('connect', function () {
 			debug("Connected");
-		})
+			if (self.config.type === 'disp') {
+				self.socket.send('authenticate 1\r\n');
+			}
+		});
 
 		self.socket.on('data', function (data) {});
 	}
@@ -66,9 +74,18 @@ instance.prototype.config_fields = function () {
 		{
 			type: 'textinput',
 			id: 'host',
-			label: 'Production Computer IP',
+			label: 'Watchout Computer IP',
 			width: 6,
 			regex: self.REGEX_IP
+		},{
+			type: 'dropdown',
+			label: 'Type',
+			id: 'type',
+			default: 'prod',
+			choices: [
+				{ id: 'prod', label: 'Production Computer' },
+				{ id: 'disp', label: 'Display Cluster' }
+			]
 		}
 	]
 };
@@ -82,7 +99,7 @@ instance.prototype.destroy = function() {
 		self.socket = undefined;
 	}
 
-	debug("destroy", self.id);;
+	debug("destroy", self.id);
 };
 
 instance.prototype.actions = function(system) {
@@ -113,7 +130,7 @@ instance.prototype.actions = function(system) {
 				default: ''
 			}]},
 		'reset': {
-			label: 'Reset',
+			label: 'Reset'
 			},
 		'gototime': {
 			label: 'Jump to time',
@@ -177,10 +194,19 @@ instance.prototype.actions = function(system) {
 				id: 'inputfade',
 				default: '0',
 				regex: self.REGEX_NUMBER
+				}]},
+		'load': {
+			label: 'Load Show',
+			options: [{
+				type: 'textinput',
+				label: 'Showfile or Showname',
+				id: 'show',
+				default: '',
+				regex: '/[a-zA-Z0-9\\\/:\.-_ ]+/'
 			}]}
 
 	});
-}
+};
 
 instance.prototype.action = function(action) {
 	var self = this;
@@ -190,21 +216,21 @@ instance.prototype.action = function(action) {
 	switch (action.action) {
 		case 'run':
 			if (action.options.timeline != '')
-				cmd = 'run "' + action.options.timeline + '"\r\n'
+				cmd = 'run "' + action.options.timeline + '"\r\n';
 			else
-				cmd = 'run\r\n'
+				cmd = 'run\r\n';
 			break;
 
 		case 'halt':
 			if (action.options.timeline != '')
-				cmd = 'halt "' + action.options.timeline + '"\r\n'
+				cmd = 'halt "' + action.options.timeline + '"\r\n';
 			else
-				cmd = 'halt\r\n'
+				cmd = 'halt\r\n';
 			break;
 
 		case 'kill':
 			if (action.options.timeline != '')
-				cmd = 'kill "' + action.options.timeline + '"\r\n'
+				cmd = 'kill "' + action.options.timeline + '"\r\n';
 			else {
 				debug('Error: Kill command for Watchout production triggered without timeline name');
 				self.log('error', 'Error: Kill command for Watchout production triggered without timeline name');
@@ -239,16 +265,16 @@ instance.prototype.action = function(action) {
 
 		case 'online':
 			if (action.options.online != 'false' && action.options.online != 'FALSE' && action.options.online != '0' )
-				cmd = 'online true\r\n'
+				cmd = 'online true\r\n';
 			else
-				cmd = 'online false\r\n'
+				cmd = 'online false\r\n';
 			break;
 
 		case 'standby':
 			if (action.options.standby != 'false' && action.options.standby != 'FALSE' && action.options.standby != '0' )
-				cmd = 'standBy true\r\n'
+				cmd = 'standBy true\r\n';
 			else
-				cmd = 'standBy false\r\n'
+				cmd = 'standBy false\r\n';
 			break;
 
 		case 'setinput':
@@ -262,6 +288,11 @@ instance.prototype.action = function(action) {
 			}
 			break;
 
+		case 'load':
+			if (action.options.show != '') {
+				cmd = 'load "' + action.options.show +'"\r\n';
+			}
+			break;
 	}
 
 	if (cmd !== undefined) {

@@ -5,7 +5,17 @@ var log;
 
 function instance(system, id, config) {
 	var self = this;
+	this.maxConditions = 30;
+	this.choicesConditions = [];
 
+	for (var i=1; i<= this.maxConditions; i++) {
+		this.choicesConditions[i-1] = {
+			type: 'checkbox',
+			label: 'Condition '+i,
+			id: i-1,
+			default: false
+		}
+	}
 	// super-constructor
 	instance_skel.apply(this, arguments);
 
@@ -174,6 +184,14 @@ instance.prototype.actions = function(system) {
 				id: 'standby',
 				default: 'true',
 				choices: self.CHOICES_YESNO_BOOLEAN
+			},{
+				type: 'number',
+				label: 'Fade time in ms',
+				id: 'fadetime',
+				min: 0,
+				max: 60000,
+				default: 1000,
+				required: true
 			}]},
 		'setinput': {
 			label: 'Set Input',
@@ -203,7 +221,11 @@ instance.prototype.actions = function(system) {
 				id: 'show',
 				default: '',
 				regex: '/[a-zA-Z0-9\\\/:\.-_ ]+/'
-			}]}
+			}]},
+		'layerCond': {
+			label: 'Set Layer Conditions',
+			options: this.choicesConditions
+		}
 
 	});
 };
@@ -238,7 +260,7 @@ instance.prototype.action = function(action) {
 			break;
 
 		case 'reset':
-				cmd = 'reset\r\n'
+				cmd = 'reset\r\n';
 			break;
 
 		case 'gototime':
@@ -271,10 +293,13 @@ instance.prototype.action = function(action) {
 			break;
 
 		case 'standby':
+			if (action.options.fadetime === undefined || action.options.fadetime <0 || action.options.fadetime > 60000) {
+				action.options.fadetime = 1000;
+			}
 			if (action.options.standby != 'false' && action.options.standby != 'FALSE' && action.options.standby != '0' )
-				cmd = 'standBy true\r\n';
+				cmd = 'standBy true '+ action.options.fadetime.toString() +'\r\n';
 			else
-				cmd = 'standBy false\r\n';
+				cmd = 'standBy false '+ action.options.fadetime.toString() +'\r\n';
 			break;
 
 		case 'setinput':
@@ -292,6 +317,16 @@ instance.prototype.action = function(action) {
 			if (action.options.show != '') {
 				cmd = 'load "' + action.options.show +'"\r\n';
 			}
+			break;
+
+		case 'layerCond':
+			var cond = 0;
+			for (var i=0; i< this.maxConditions; i++) {
+				if (action.options[i] === true) {
+					cond += 2**i;
+				}
+			}
+			cmd = 'enableLayerCond ' + cond +'\r\n';
 			break;
 	}
 

@@ -1,2 +1,2 @@
-# companion-module-watchout-production
+# companion-module-dataton-watchout
 See HELP.md and LICENSE

@@ -205,7 +205,7 @@ instance.prototype.actions = function(system) {
 				label: 'Value',
 				id: 'inputvalue',
 				default: '1.0',
-				regex: self.REGEX_FLOAT
+				regex: self.REGEX_SIGNED_FLOAT
 			},{
 				type: 'textinput',
 				label: 'Fadetime (ms)',
@@ -304,7 +304,11 @@ instance.prototype.action = function(action) {
 
 		case 'setinput':
 			if (action.options.inputname != '' && action.options.inputvalue != '') {
-				cmd = 'setInput "' + action.options.inputname +'" '+ parseFloat(action.options.inputvalue);
+				cmd = 'setInput "' + action.options.inputname +'" ';
+				if (action.options.inputvalue.startsWith("+")) {
+					cmd+= "+";
+				}
+				cmd+= parseFloat(action.options.inputvalue);
 				if (action.options.inputfade != '') cmd += ' '+ parseInt(action.options.inputfade);
 				cmd += '\r\n';
 			} else {

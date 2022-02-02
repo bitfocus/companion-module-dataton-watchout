@@ -20,5 +20,13 @@
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"author": "Dorian Meid <meid@backstage.org>",
-	"license": "MIT"
+	"license": "MIT",
+	"homepage": "https://github.com/bitfocus/companion-module-dataton-watchout#readme",
+	"bugs": {
+		"url": "https://github.com/bitfocus/companion-module-dataton-watchout/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/bitfocus/companion-module-dataton-watchout.git"
+	}
 }

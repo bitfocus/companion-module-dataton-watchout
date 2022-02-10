@@ -117,7 +117,6 @@ function instance(system, id, config) {
 
 	self.actions(); // export actions
 
-	//TODO: fix this mess
 	Object.assign(self, {
 		...feedbacks,
 		...presets,
@@ -189,13 +188,10 @@ instance.prototype.init_tcp = function() {
 
 			// Multiple messages can come combined in just one burst, split them
 			var messages = reply.matchAll(self.regex.watchoutReply);
-			//debug("MESSAGES:\n"+messages);
 			for (const message of messages) {
 
 				var type = message[1];
 				var content = message[2];
-				//debug("MESSAGE #"+message.index+" CONTENT:\n"+type+"\n"+JSON.stringify(content));
-				//debug("MESSAGE #"+message.index+" CONTENT:\n"+type+"\n"+content);
 
 				if(type == "Reply") {
 					try { // Reply to: GetAuxTimelines tree
@@ -244,15 +240,15 @@ instance.prototype.init_tcp = function() {
 						//continue;
 					}
 					// Maybe it's a general status update message
-					var generalStatusMatches = [...content.matchAll(self.regex.generalStatus)]; // A single response could contain more than one aux timeline data, one per line
+					var generalStatusMatches = [...content.matchAll(self.regex.generalStatus)]; // A single response shouldn't contain more than one general status update, but let's keep it safe
 					if(generalStatusMatches.length > 0) {
-						// Should be a single line, but maybe it's part of a multi-line response, let's
+						// Should be a single line/match
 						for(const match of generalStatusMatches) {
 							self.auxTimelinesStatus[""] = {
 								status: (match[9] == "true") ? 2 : 1,
 								position: match[8],
 								updated: match[13]
-								// TODO: store other status data
+								// TODO: store other status data in the istance?
 							}
 
 							// Update variables

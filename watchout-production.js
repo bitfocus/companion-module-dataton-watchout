@@ -335,7 +335,7 @@ instance.prototype.destroy = function() {
 
 instance.prototype.actions = function(system) {
 	var self = this;
-	self.setActions({
+	let actions = {
 		'run': {
 			label: 'Run',
 			options: [{
@@ -446,20 +446,27 @@ instance.prototype.actions = function(system) {
 		'layerCond': {
 			label: 'Set Layer Conditions',
 			options: this.choicesConditions
-		},
-		'getAuxTimelines': {
-			label: 'Get Aux Timelines Names'
-		},
-		'toggleRun': {
-			label: 'Toggle run',
-			options: [{
-				type: 'textinput',
-				label: 'timeline (optional)',
-				id: 'timeline',
-				default: ''
-			}]},
+		}
+	};
 
-	});
+	if(self.config.feedback === true) {
+		actions = Object.assign(actions, {
+			'getAuxTimelines': {
+				label: 'Get Aux Timelines Names'
+			},
+			'toggleRun': {
+				label: 'Toggle run',
+				options: [{
+					type: 'textinput',
+					label: 'timeline (optional)',
+					id: 'timeline',
+					default: ''
+				}]
+			}
+		});
+	}
+
+	self.setActions(actions);
 };
 
 instance.prototype.action = function(action) {

@@ -14,47 +14,15 @@ function instance(system, id, config) {
 	self.maxConditions = 30;
 	self.choicesConditions = [];
 	self.auxTimelinesChoices = [];// [{ id: '', label: 'Main' }];
-	self.auxTimelinesTree = {};
 	self.auxTimelinesSubscriptionStrings = [];
 	self.auxTimelinesStatus = {};
 
+	// Some regex to parse messages from Watchout
 	self.regex = {
+		/* Response messages splitter
+			this is used to split the received string from Watchout into multiple messages (they can come in a single burst)
+		*/
 		watchoutReply: /(?<=\r\n|^)(Ready|Busy|Reply|Error|Status) (.*?)(?=(\r\nReady|\r\nBusy|\r\nReply|\r\nError|\r\nStatus)|$)/sg,
-		/*
-		Reply { "ItemList" : [ { "Name" : "MAIN FOLDER", "ItemList" : [ { "Name" : "SUB FOLDER",
-		"ItemList" : [ { "Name" : "TL1b", "Duration" : 600000 }, { "Name" : "TL1a",
-		"Duration" : 600000 }, { "Name" : "TASK 5", "Duration" : 600000
-		}
-		]
-		}
-		, { "Name" : "TL2", "Duration" : 600000 }
-		]
-		}
-		, { "Name" : "TL4", "Duration" : 600000 }, { "Name" : "TL3", "Duration" : 600000
-		}
-		]
-		}
-		Status "" "companion-watchout" false 0 true true false 0 false 0 false 263963
-
-		*/
-
-		/*
-						Reply { "ItemList" : [ { "Name" : "MAIN FOLDER", "ItemList" : [ { "Name" : "SUB FOLDER",
-						"ItemList" : [ { "Name" : "TL1b", "Duration" : 600000 }, { "Name" : "TL1a",
-						"Duration" : 600000 }, { "Name" : "TASK 5", "Duration" : 600000
-						}
-						]
-						}
-						, { "Name" : "TL2", "Duration" : 600000 }
-						]
-						}
-						, { "Name" : "TL4", "Duration" : 600000 }, { "Name" : "TL3", "Duration" : 600000
-						}
-						]
-						}
-						Status "" "companion-watchout" false 0 true true false 600000 false 0 false 26377945
-						Status "" "companion-watchout" false 0 true true false 600000 false 0 false 26377945
-		*/
 
 		/* Tasks status, capture groups:
 			[1] task name (string)
@@ -74,11 +42,11 @@ function instance(system, id, config) {
 			[7] programmer is online (bool)
 			[8] Playhead position (int)
 			[9] playing (bool)
-					[not captured] timeline rate (float)
-			[10] standby (bool)
-			[11] message time (int)
+			[10] timeline rate (float)
+			[11] standby (bool)
+			[12] message time (int)
 		*/
-		generalStatus: /"([^"]*)" "([^"]*)" (true|false) (0|1|2|3) (true|false) (true|false) (true|false) (\d+) (true|false) [0-9]*\.?[0-9]+ (true|false) (\d+)/g
+		generalStatus: /"([^"]*)" "([^"]*)" (true|false) (0|1|2|3) (true|false) (true|false) (true|false) (\d+) (true|false) ([0-9]*\.?[0-9]+) (true|false) (\d+)/g
 	}
 	// Store feedback colors in one place to be retrieved later for dynamic preset creation
 	self.feedbacksSettings = {
@@ -98,6 +66,7 @@ function instance(system, id, config) {
 				}
 			}
 		},
+		// Icons are similar to the ones used in Watchout
 		images: {
 			play: "iVBORw0KGgoAAAANSUhEUgAAACgAAAARCAYAAACvi+4IAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA7ElEQVRIic3WP05CQRDH8Q8EKxo5AKcwsZbQaGdJD7UVpScwyg3o1cQLaGIojIQCW4+hjZUFFu8Zecqf9x7I7jfZbHZnZveX2UlmK5iJmBp8HByVPqA+Ha13+k7BEL1i59cK6tmMLl4xwVO+kIzAXNlIKZ31y3Tu4Ga9e7XcLVvgGm84XO0WTiDsY4xH9Be77LYGF1FFKx1NybM/Z83xcIZztH+24hIIJ7jHZ7KMT+ADTrGXLMPX4DwD3MnUYHiBM7zgFhd/zWEFvuNY0lmWEK4GO2hYKY5fGdzk05CbvvK9+N8Z4qpYSEXk/8EvpY4lbjcQqfcAAAAASUVORK5CYII=",
 			pause: "iVBORw0KGgoAAAANSUhEUgAAACgAAAARCAYAAACvi+4IAAAACXBIWXMAAAsTAAALEwEAmpwYAAABJElEQVRIic3Wv0oDQRAG8F8kVjZpLO30CQQbG8VGO0sbFdQ6WKT0CURtrNNoo4IvoBAsRLHQ1kJbKwXTCIJFLHaPGPyTywXv8sGyw+03ex+zM8yU0DLAKMPb5EzmC0ZuL7qTkhDUsdHb/eUe9fSHddzjBpfpXDoEpopGROao78R9Ccfd6UPZ/pIRJTxG+wivmPrbJV+BMIEVnKCCazRQ+5mebw4mOMQT3gWxs3GNCc9+1abmH8EEDayiipf4rYotzLVpxQlMsI9RoWiaWMAZPsJx8QI38SwUTQXnWMRwOC4mB2Eaa3El2MOpjhwsRuAyDqLdwp1Q1dvfqfkLfMB4tJuYFzrLL8hX4NexJGUn6RDYz9CQGjXZe/G/o47d3lxKBnwe/AQw2jSbUiV2YwAAAABJRU5ErkJggg==",
@@ -188,18 +157,19 @@ instance.prototype.init_tcp = function() {
 
 			// Multiple messages can come combined in just one burst, split them
 			var messages = reply.matchAll(self.regex.watchoutReply);
-			for (const message of messages) {
 
+			for (const message of messages) {
 				var type = message[1];
 				var content = message[2];
-
 				if(type == "Reply") {
-					try { // Reply to: GetAuxTimelines tree
+					// TODO: add some checks on the reply we are getting
+					try { // Try to parse a reply to: GetAuxTimelines tree
 						var content_JSON = JSON.parse(content); // Reply content
-						// Get task list from task tree
+						// Get task list from task tree to be used in dropdown menus
 						self.auxTimelinesChoices = self.parseAuxTimelines(content_JSON);
+						// Add the main timeline to the list
 						self.auxTimelinesChoices.push({ id: '', label: 'Main' });
-						// Build subscription strings and check if there are new tasks to subscribe
+						// Build subscription strings and check if there are new tasks to subscribe to
 						var auxTimelinesSubscriptionStringsDiff = _.difference(self.buildSubscriptionStrings(content_JSON), self.auxTimelinesSubscriptionStrings);
 						if(auxTimelinesSubscriptionStringsDiff.length !== 0) { // We have new tasks!
 							//Subscribe to new tasks
@@ -210,13 +180,12 @@ instance.prototype.init_tcp = function() {
 							self.auxTimelinesSubscriptionStrings.push(...auxTimelinesSubscriptionStringsDiff);
 							self.actions(); // Update actions (refresh all dropdown menus)
 							self.initFeedbacks(); // Update feedbacks (refresh all dropdown menus)
-							if(self.config.feedback === true) {
-								let newPresets = self.getPresets();
-								for (const timeline of self.auxTimelinesChoices) {
-									newPresets.push(...self.buildPresets(timeline));
-								}
-								self.setPresetDefinitions(newPresets);
+							// Rebuild the presets from scratch
+							let newPresets = self.getPresets();
+							for (const timeline of self.auxTimelinesChoices) {
+								newPresets.push(...self.buildPresets(timeline));
 							}
+							self.setPresetDefinitions(newPresets);
 						}
 					} catch(e) {
 						self.log('warning', "Cannot parse reply message. " + e);
@@ -226,9 +195,9 @@ instance.prototype.init_tcp = function() {
 					}
 				} else if(type == "Status") {
 					// Maybe it's a task status update message
-					var taskStatusMatches = [...content.matchAll(self.regex.taskStatus)]; // A single response could contain more than one aux timeline data, one per line
+					var taskStatusMatches = [...content.matchAll(self.regex.taskStatus)]; // We should get only one match but let's keep it safe
 					if(taskStatusMatches.length > 0) {
-						// Foreach match/task, update data stored in the instance
+						// Should be a single line/match
 						for(const match of taskStatusMatches) {
 							self.auxTimelinesStatus[match[1]] = {
 								status: match[2],
@@ -240,7 +209,7 @@ instance.prototype.init_tcp = function() {
 						//continue;
 					}
 					// Maybe it's a general status update message
-					var generalStatusMatches = [...content.matchAll(self.regex.generalStatus)]; // A single response shouldn't contain more than one general status update, but let's keep it safe
+					var generalStatusMatches = [...content.matchAll(self.regex.generalStatus)]; // We should get only one match but let's keep it safe
 					if(generalStatusMatches.length > 0) {
 						// Should be a single line/match
 						for(const match of generalStatusMatches) {
@@ -277,7 +246,7 @@ instance.prototype.init_tcp = function() {
 							self.setVariable('programmerOnline', match[7]);
 							self.setVariable('playheadMain', match[8]);
 							self.setVariable('playingMain', match[9]);
-							self.setVariable('standby', match[10]);
+							self.setVariable('standby', match[11]);
 						}
 						self.checkFeedbacks();
 						//continue;
@@ -449,6 +418,7 @@ instance.prototype.actions = function(system) {
 		}
 	};
 
+	// Add feedback-related actions only if needed
 	if(self.config.feedback === true) {
 		actions = Object.assign(actions, {
 			'getAuxTimelines': {
@@ -632,6 +602,7 @@ instance.prototype.initVariables = function() {
 	}
 }
 
+// Recursive function to create a list of timelines to be used in dropdown menus
 instance.prototype.parseAuxTimelines = function(timelinesItemListObj) {
 	var self = this;
 	if(timelinesItemListObj.hasOwnProperty('Duration')) { 						// Exit condition, we are parsing a timeline
@@ -642,13 +613,17 @@ instance.prototype.parseAuxTimelines = function(timelinesItemListObj) {
 	}
   if(timelinesItemListObj.hasOwnProperty('ItemList')) { 						// We are parsing an ItemList (main tree or folder)
   	var items = [];
+		// Iterate timelines list object in reverse order to preserve the "normal" order in dropdown menus
 		_.eachRight(timelinesItemListObj.ItemList, itemListObj => {
       items.push(self.parseAuxTimelines(itemListObj));
     });
+		// Get rid of nested array and return it
     return items.flat();
 	}
 }
 
+// Utility function to dynamically build presets based on a timeline object passed to it
+// We expect to receive a timeline object containing timeline.id and timeline.label
 instance.prototype.buildPresets = function(timeline) {
 	var self = this;
 	let presets = [];
@@ -810,20 +785,29 @@ instance.prototype.buildPresets = function(timeline) {
 	return presets;
 }
 
-instance.prototype.buildSubscriptionStrings = function(timelinesItemListObj, parentName = "") {
+// Recursive function to create a list of command strings to be used to subscribe tasks update
+// We need this because to subscribe the updates it is mandatory to specify the folder structure (if there is any)
+// "prefix" parameter is only used during recursion
+// Examples of subscription strings:
+// getStatus 1 "TaskList:mItemList:mItems:TimelineTask \"TASK NAME\""\r
+// getStatus 1 "TaskList:mItemList:mItems:TaskFolder \\"FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
+// getStatus 1 "TaskList:mItemList:mItems:TaskFolder \\"MAIN FOLDER\\" :mItemList:mItems:TaskFolder \\"SUB FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
+instance.prototype.buildSubscriptionStrings = function(timelinesItemListObj, prefix = "") {
 	var self = this;
 	if(timelinesItemListObj.hasOwnProperty("Duration")) { 						// Exit condition, we are parsing a timeline
-		return parentName + ':mItemList:mItems:TimelineTask \\"' + timelinesItemListObj.Name + '\\""\r';
+		return prefix + ':mItemList:mItems:TimelineTask \\"' + timelinesItemListObj.Name + '\\""\r';
 	}
   if(timelinesItemListObj.hasOwnProperty("ItemList")) { 						// We are parsing an ItemList (main tree or folder)
   	var items = [];
     if(timelinesItemListObj.hasOwnProperty("Name")) {
-    	parentName+= ':mItemList:mItems:TaskFolder \\"' + timelinesItemListObj.Name + '\\" ';
+			// If an timelinesItemListObj hasn't a Duration but has both ItemList and Name properties, it's a folder
+    	prefix+= ':mItemList:mItems:TaskFolder \\"' + timelinesItemListObj.Name + '\\" ';
     } else {
-    	parentName = 'getStatus 1 "TaskList' + parentName;
+			// Otherwise we are beginning our recursion
+    	prefix = 'getStatus 1 "TaskList';// + prefix;
     }
     timelinesItemListObj.ItemList.forEach(itemListObj => {
-      items.push(self.buildSubscriptionStrings(itemListObj, parentName));
+      items.push(self.buildSubscriptionStrings(itemListObj, prefix));
     });
     return items.flat();
 	}

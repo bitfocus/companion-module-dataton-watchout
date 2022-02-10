@@ -768,6 +768,45 @@ instance.prototype.buildPresets = function(timeline) {
 			}
 		]
 	});
+
+	presets.push({
+		category: 'Toggle run',
+		label: timeline.label,
+		bank: {
+			style: 'text',
+			text: timeline.label + "\\n",
+			color: self.rgb(255,255,255),
+			bgcolor: self.rgb(0,0,0)
+		},
+		actions: [{
+			action: 'toggleRun',
+			options: {
+				timeline: timeline.id
+			}
+		}],
+		feedbacks: [
+			{
+				type: 'task_playing',
+				options: {
+					icons: true,
+					auxTimeline: timeline.id
+				}
+			},{
+				type: 'task_paused',
+				options: {
+					icons: true,
+					auxTimeline: timeline.id
+				}
+			},{
+				type: 'task_stopped',
+				options: {
+					icons: true,
+					auxTimeline: timeline.id
+				}
+			}
+		]
+	});
+
 	return presets;
 }
 

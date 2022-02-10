@@ -304,31 +304,31 @@ instance.prototype.destroy = function() {
 
 instance.prototype.actions = function(system) {
 	var self = this;
+	let timelineOption = {
+		type: 'textinput',
+		label: 'timeline (optional)',
+		id: 'timeline',
+		default: ''
+	}
+	if(self.config.feedback === true) {
+		timelineOption = {
+			type: 'dropdown',
+			label: 'Timeline',
+			id: 'timeline',
+			default: '',
+			choices: self.auxTimelinesChoices
+		}
+	}
 	let actions = {
 		'run': {
 			label: 'Run',
-			options: [{
-				type: 'textinput',
-				label: 'timeline (optional)',
-				id: 'timeline',
-				default: ''
-			}]},
+			options: [timelineOption]},
 		'halt': {
 			 label: 'Pause',
-			 options: [{
-				 type: 'textinput',
-				 label: 'timeline (optional)',
-				 id: 'timeline',
-				 default: ''
-			}]},
+			 options: [timelineOption]},
 		'kill': {
 			label: 'Kill',
-			options: [{
-				type: 'textinput',
-				label: 'Aux timeline',
-				id: 'timeline',
-				default: ''
-			}]},
+			options: [timelineOption]},
 		'reset': {
 			label: 'Reset'
 			},
@@ -340,12 +340,9 @@ instance.prototype.actions = function(system) {
 				id: 'time',
 				default: '"00:00:00.000"',
 				regex: '/^(\\d{1,12}|"\\d{1,2}:\\d{1,2}:\\d{1,2}\\.\\d{1,3}")$/'
-			},{
-				type: 'textinput',
-				label: 'timeline (optional)',
-				id: 'timeline',
-				default: ''
-			}]},
+				},
+				timelineOption
+			]},
 		'gotocue': {
 			label: 'Jump to cue',
 			options: [{
@@ -353,12 +350,9 @@ instance.prototype.actions = function(system) {
 				label: 'Cue name',
 				id: 'cuename',
 				default: ''
-			},{
-				type: 'textinput',
-				label: 'timeline (optional)',
-				id: 'timeline',
-				default: ''
-			}]},
+			},
+			timelineOption
+		]},
 		'online': { label: 'Go online',
 			options: [{
 				type: 'dropdown',
@@ -426,12 +420,7 @@ instance.prototype.actions = function(system) {
 			},
 			'toggleRun': {
 				label: 'Toggle run',
-				options: [{
-					type: 'textinput',
-					label: 'timeline (optional)',
-					id: 'timeline',
-					default: ''
-				}]
+				options: [timelineOption]
 			}
 		});
 	}

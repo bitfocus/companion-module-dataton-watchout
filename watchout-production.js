@@ -724,19 +724,19 @@ instance.prototype.buildPresets = function(timeline) {
 				type: 'task_playing',
 				options: {
 					icons: true,
-					auxTimeline: timeline.id
+					timeline: timeline.id
 				}
 			},{
 				type: 'task_paused',
 				options: {
 					icons: true,
-					auxTimeline: timeline.id
+					timeline: timeline.id
 				}
 			},{
 				type: 'task_stopped',
 				options: {
 					icons: true,
-					auxTimeline: timeline.id
+					timeline: timeline.id
 				}
 			}
 		]
@@ -756,19 +756,19 @@ instance.prototype.buildPresets = function(timeline) {
 				type: 'task_playing',
 				options: {
 					icons: false,
-					auxTimeline: timeline.id
+					timeline: timeline.id
 				}
 			},{
 				type: 'task_paused',
 				options: {
 					icons: false,
-					auxTimeline: timeline.id
+					timeline: timeline.id
 				}
 			},{
 				type: 'task_stopped',
 				options: {
 					icons: false,
-					auxTimeline: timeline.id
+					timeline: timeline.id
 				}
 			}
 		]
@@ -794,19 +794,19 @@ instance.prototype.buildPresets = function(timeline) {
 				type: 'task_playing',
 				options: {
 					icons: true,
-					auxTimeline: timeline.id
+					timeline: timeline.id
 				}
 			},{
 				type: 'task_paused',
 				options: {
 					icons: true,
-					auxTimeline: timeline.id
+					timeline: timeline.id
 				}
 			},{
 				type: 'task_stopped',
 				options: {
 					icons: true,
-					auxTimeline: timeline.id
+					timeline: timeline.id
 				}
 			}
 		]

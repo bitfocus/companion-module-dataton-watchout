@@ -2,6 +2,7 @@ var tcp 					= require('../../tcp');
 var instance_skel = require('../../instance_skel');
 let feedbacks 		= require('./feedbacks');
 let presets 			= require('./presets');
+let variables			= require('./variables');
 const _ 					= require('lodash');
 var debug;
 var log;
@@ -73,12 +74,11 @@ function instance(system, id, config) {
 			[7] programmer is online (bool)
 			[8] Playhead position (int)
 			[9] playing (bool)
-			[10] timeline rate (float)
-					[11] DISCARD (partial match for the float value)
-			[12] standby (bool)
-			[13] message time (int)
+					[not captured] timeline rate (float)
+			[10] standby (bool)
+			[11] message time (int)
 		*/
-		generalStatus: /"([^"]*)" "([^"]*)" (true|false) (0|1|2|3) (true|false) (true|false) (true|false) (\d+) (true|false) ([0-9]*[.])?[0-9]+ (true|false) (\d+)/g
+		generalStatus: /"([^"]*)" "([^"]*)" (true|false) (0|1|2|3) (true|false) (true|false) (true|false) (\d+) (true|false) [0-9]*\.?[0-9]+ (true|false) (\d+)/g
 	}
 	// Store feedback colors in one place to be retrieved later for dynamic preset creation
 	self.feedbacksSettings = {
@@ -120,7 +120,8 @@ function instance(system, id, config) {
 	//TODO: fix this mess
 	Object.assign(self, {
 		...feedbacks,
-		...presets
+		...presets,
+		...variables
 	});
 
 	return self;
@@ -133,6 +134,7 @@ instance.prototype.init = function() {
 	log = self.log;
 	self.initFeedbacks();
 	self.initPresets();
+	self.initVariables();
 	self.init_tcp();
 };
 
@@ -141,6 +143,7 @@ instance.prototype.updateConfig = function(config) {
 	self.config = config;
 	self.initFeedbacks();
 	self.initPresets();
+	self.initVariables();
 	self.init_tcp();
 };
 
@@ -198,10 +201,10 @@ instance.prototype.init_tcp = function() {
 					try { // Reply to: GetAuxTimelines tree
 						var content_JSON = JSON.parse(content); // Reply content
 						// Get task list from task tree
-						self.auxTimelinesChoices = parseAuxTimelines(content_JSON);
+						self.auxTimelinesChoices = self.parseAuxTimelines(content_JSON);
 						self.auxTimelinesChoices.push({ id: '', label: 'Main' });
 						// Build subscription strings and check if there are new tasks to subscribe
-						var auxTimelinesSubscriptionStringsDiff = _.difference(buildSubscriptionStrings(content_JSON), self.auxTimelinesSubscriptionStrings);
+						var auxTimelinesSubscriptionStringsDiff = _.difference(self.buildSubscriptionStrings(content_JSON), self.auxTimelinesSubscriptionStrings);
 						if(auxTimelinesSubscriptionStringsDiff.length !== 0) { // We have new tasks!
 							//Subscribe to new tasks
 							auxTimelinesSubscriptionStringsDiff.forEach(subscriptionString => {
@@ -211,131 +214,16 @@ instance.prototype.init_tcp = function() {
 							self.auxTimelinesSubscriptionStrings.push(...auxTimelinesSubscriptionStringsDiff);
 							self.actions(); // Update actions (refresh all dropdown menus)
 							self.initFeedbacks(); // Update feedbacks (refresh all dropdown menus)
-							let newPresets = self.getPresets();
-							for (const timeline of self.auxTimelinesChoices) {
-								newPresets.push({
-						      category: 'Run',
-						      label: timeline.label,
-						      bank: {
-						        style: 'text',
-						        text: "Run\\n" + timeline.label,
-						        color: self.rgb(255,255,255),
-						        bgcolor: self.rgb(0,0,0)
-						      },
-									actions: [{
-						        action: 'run',
-										options: {
-											timeline: timeline.id
-										}
-						      }]
-						    });
-
-								newPresets.push({
-						      category: 'Halt',
-						      label: timeline.label,
-						      bank: {
-						        style: 'text',
-						        text: "Halt\\n" + timeline.label,
-						        color: self.rgb(255,255,255),
-						        bgcolor: self.rgb(0,0,0)
-						      },
-									actions: [{
-						        action: 'halt',
-										options: {
-											timeline: timeline.id
-										}
-						      }]
-						    });
-
-								if(timeline.id != "") {	// You can't kill the main timeline
-									newPresets.push({
-							      category: 'Kill',
-							      label: timeline.label,
-							      bank: {
-							        style: 'text',
-							        text: "Kill\\n" + timeline.label,
-							        color: self.rgb(255,255,255),
-							        bgcolor: self.rgb(0,0,0)
-							      },
-										actions: [{
-							        action: 'kill',
-											options: {
-												timeline: timeline.id
-											}
-							      }]
-							    });
+							if(self.config.feedback === true) {
+								let newPresets = self.getPresets();
+								for (const timeline of self.auxTimelinesChoices) {
+									newPresets.push(...self.buildPresets(timeline));
 								}
-
-								newPresets.push({
-									category: 'Feedbacks with icons',
-									label: timeline.label + "\\n",
-									bank: {
-										style: 'text',
-										text: timeline.label + "\\n",
-										color: self.rgb(255,255,255),
-										bgcolor: self.rgb(0,0,0)
-									},
-									feedbacks: [
-										{
-											type: 'task_playing',
-											options: {
-												icons: true,
-												auxTimeline: timeline.id
-											}
-										},{
-											type: 'task_paused',
-											options: {
-												icons: true,
-												auxTimeline: timeline.id
-											}
-										},{
-											type: 'task_stopped',
-											options: {
-												icons: true,
-												auxTimeline: timeline.id
-											}
-										}
-									]
-								});
-
-								newPresets.push({
-									category: 'Feedbacks with colors',
-									label: timeline.label,
-									bank: {
-										style: 'text',
-										text: timeline.label,
-										color: self.rgb(255,255,255),
-										bgcolor: self.rgb(0,0,0)
-									},
-									feedbacks: [
-										{
-											type: 'task_playing',
-											options: {
-												icons: false,
-												auxTimeline: timeline.id
-											}
-										},{
-											type: 'task_paused',
-											options: {
-												icons: false,
-												auxTimeline: timeline.id
-											}
-										},{
-											type: 'task_stopped',
-											options: {
-												icons: false,
-												auxTimeline: timeline.id
-											}
-										}
-									]
-								});
+								self.setPresetDefinitions(newPresets);
 							}
-							debug(newPresets);
-							self.setPresetDefinitions(newPresets);
 						}
 					} catch(e) {
-						debug("ERROR: " + e);
-						self.log('error', "ERROR: " + e);
+						self.log('warning', "Cannot parse reply message. " + e);
 						if(e == "SyntaxError: Unexpected end of JSON input") {
 							// TODO: send the same command again?
 						}
@@ -364,8 +252,36 @@ instance.prototype.init_tcp = function() {
 								status: (match[9] == "true") ? 2 : 1,
 								position: match[8],
 								updated: match[13]
+								// TODO: store other status data
 							}
-							// TODO: store other status data
+
+							// Update variables
+							let clusterHealth = '';
+							switch (match[4]) {
+								case '0':
+									clusterHealth = 'Ok';
+									break;
+								case '1':
+									clusterHealth = 'Suboptimal';
+									break;
+								case '2':
+									clusterHealth = 'Problems';
+									break;
+								case '3':
+									clusterHealth = 'Dead';
+									break;
+								default:
+									clusterHealth = 'Unknown value'
+							}
+							self.setVariable('showName', match[2]);
+							self.setVariable('busy', match[3]);
+							self.setVariable('clusterHealth', clusterHealth);
+							self.setVariable('fullscreen', match[5]);
+							self.setVariable('ready', match[6]);
+							self.setVariable('programmerOnline', match[7]);
+							self.setVariable('playheadMain', match[8]);
+							self.setVariable('playingMain', match[9]);
+							self.setVariable('standby', match[10]);
 						}
 						self.checkFeedbacks();
 						//continue;
@@ -373,44 +289,10 @@ instance.prototype.init_tcp = function() {
 				} else {
 					// TODO: handle Ready|Busy|Error messages
 					debug(type + ": " + content);
-					self.log('warning', type + ": " + content);
+					self.log('warning', "Unhandled message. " + type + ": " + content);
 				}
 			}
 		});
-	}
-}
-
-function parseAuxTimelines(timelinesItemListObj) {
-	if(timelinesItemListObj.hasOwnProperty('Duration')) { 						// Exit condition, we are parsing a timeline
-		return {
-			id: timelinesItemListObj.Name,
-			label: timelinesItemListObj.Name
-		};
-	}
-  if(timelinesItemListObj.hasOwnProperty('ItemList')) { 						// We are parsing an ItemList (main tree or folder)
-  	var items = [];
-		_.eachRight(timelinesItemListObj.ItemList, itemListObj => {
-      items.push(parseAuxTimelines(itemListObj));
-    });
-    return items.flat();
-	}
-}
-
-function buildSubscriptionStrings(timelinesItemListObj, parentName = "") {
-	if(timelinesItemListObj.hasOwnProperty("Duration")) { 						// Exit condition, we are parsing a timeline
-		return parentName + ':mItemList:mItems:TimelineTask \\"' + timelinesItemListObj.Name + '\\""\r';
-	}
-  if(timelinesItemListObj.hasOwnProperty("ItemList")) { 						// We are parsing an ItemList (main tree or folder)
-  	var items = [];
-    if(timelinesItemListObj.hasOwnProperty("Name")) {
-    	parentName+= ':mItemList:mItems:TaskFolder \\"' + timelinesItemListObj.Name + '\\" ';
-    } else {
-    	parentName = 'getStatus 1 "TaskList' + parentName;
-    }
-    timelinesItemListObj.ItemList.forEach(itemListObj => {
-      items.push(buildSubscriptionStrings(itemListObj, parentName));
-    });
-    return items.flat();
 	}
 }
 
@@ -571,7 +453,15 @@ instance.prototype.actions = function(system) {
 		},
 		'getAuxTimelines': {
 			label: 'Get Aux Timelines Names'
-		}
+		},
+		'toggleRun': {
+			label: 'Toggle run',
+			options: [{
+				type: 'textinput',
+				label: 'timeline (optional)',
+				id: 'timeline',
+				default: ''
+			}]},
 
 	});
 };
@@ -679,8 +569,16 @@ instance.prototype.action = function(action) {
 			cmd = 'enableLayerCond ' + cond +'\r\n';
 			break;
 
-			case 'getAuxTimelines':
+		case 'getAuxTimelines':
 			cmd = 'getAuxTimelines tree\r\n';
+			break;
+
+		case 'toggleRun':
+			if(self.auxTimelinesStatus[action.options.timeline].status == 2) {
+				cmd = 'halt "' + action.options.timeline + '"\r\n';
+			} else {
+				cmd = 'run "' + action.options.timeline + '"\r\n';
+			}
 			break;
 	}
 
@@ -703,12 +601,190 @@ instance.prototype.action = function(action) {
 
 instance.prototype.initFeedbacks = function() {
 	var self = this;
-	self.setFeedbackDefinitions(self.getFeedbacks());
+	if(self.config.feedback === true) {
+		self.setFeedbackDefinitions(self.getFeedbacks());
+	} else {
+		// TODO: delete feedbacks if self.config.feedback is toggled from true to false
+		//self.setFeedbackDefinitions([]);
+	}
 }
 
 instance.prototype.initPresets = function() {
 	var self = this;
-	self.setPresetDefinitions(self.getPresets());
+	if(self.config.feedback === true) {
+		self.setPresetDefinitions(self.getPresets());
+	} else {
+		// TODO: delete presets if self.config.feedback is toggled from true to false
+		//self.setPresetDefinitions([]);
+	}
+}
+
+instance.prototype.initVariables = function() {
+	var self = this;
+	if(self.config.feedback === true) {
+		self.setVariableDefinitions(self.getVariables());
+	} else {
+		// TODO: delete varaibles if self.config.feedback is toggled from true to false
+		//self.setVariableDefinitions([]);
+	}
+}
+
+instance.prototype.parseAuxTimelines = function(timelinesItemListObj) {
+	var self = this;
+	if(timelinesItemListObj.hasOwnProperty('Duration')) { 						// Exit condition, we are parsing a timeline
+		return {
+			id: timelinesItemListObj.Name,
+			label: timelinesItemListObj.Name
+		};
+	}
+  if(timelinesItemListObj.hasOwnProperty('ItemList')) { 						// We are parsing an ItemList (main tree or folder)
+  	var items = [];
+		_.eachRight(timelinesItemListObj.ItemList, itemListObj => {
+      items.push(self.parseAuxTimelines(itemListObj));
+    });
+    return items.flat();
+	}
+}
+
+instance.prototype.buildPresets = function(timeline) {
+	var self = this;
+	let presets = [];
+	presets.push({
+		category: 'Run',
+		label: timeline.label,
+		bank: {
+			style: 'text',
+			text: "Run\\n" + timeline.label,
+			color: self.rgb(255,255,255),
+			bgcolor: self.rgb(0,0,0)
+		},
+		actions: [{
+			action: 'run',
+			options: {
+				timeline: timeline.id
+			}
+		}]
+	});
+
+	presets.push({
+		category: 'Halt',
+		label: timeline.label,
+		bank: {
+			style: 'text',
+			text: "Halt\\n" + timeline.label,
+			color: self.rgb(255,255,255),
+			bgcolor: self.rgb(0,0,0)
+		},
+		actions: [{
+			action: 'halt',
+			options: {
+				timeline: timeline.id
+			}
+		}]
+	});
+
+	if(timeline.id != "") {	// You can't kill the main timeline
+		presets.push({
+			category: 'Kill',
+			label: timeline.label,
+			bank: {
+				style: 'text',
+				text: "Kill\\n" + timeline.label,
+				color: self.rgb(255,255,255),
+				bgcolor: self.rgb(0,0,0)
+			},
+			actions: [{
+				action: 'kill',
+				options: {
+					timeline: timeline.id
+				}
+			}]
+		});
+	}
+
+	presets.push({
+		category: 'Feedbacks with icons',
+		label: timeline.label + "\\n",
+		bank: {
+			style: 'text',
+			text: timeline.label + "\\n",
+			color: self.rgb(255,255,255),
+			bgcolor: self.rgb(0,0,0)
+		},
+		feedbacks: [
+			{
+				type: 'task_playing',
+				options: {
+					icons: true,
+					auxTimeline: timeline.id
+				}
+			},{
+				type: 'task_paused',
+				options: {
+					icons: true,
+					auxTimeline: timeline.id
+				}
+			},{
+				type: 'task_stopped',
+				options: {
+					icons: true,
+					auxTimeline: timeline.id
+				}
+			}
+		]
+	});
+
+	presets.push({
+		category: 'Feedbacks with colors',
+		label: timeline.label,
+		bank: {
+			style: 'text',
+			text: timeline.label,
+			color: self.rgb(255,255,255),
+			bgcolor: self.rgb(0,0,0)
+		},
+		feedbacks: [
+			{
+				type: 'task_playing',
+				options: {
+					icons: false,
+					auxTimeline: timeline.id
+				}
+			},{
+				type: 'task_paused',
+				options: {
+					icons: false,
+					auxTimeline: timeline.id
+				}
+			},{
+				type: 'task_stopped',
+				options: {
+					icons: false,
+					auxTimeline: timeline.id
+				}
+			}
+		]
+	});
+	return presets;
+}
+
+instance.prototype.buildSubscriptionStrings = function(timelinesItemListObj, parentName = "") {
+	var self = this;
+	if(timelinesItemListObj.hasOwnProperty("Duration")) { 						// Exit condition, we are parsing a timeline
+		return parentName + ':mItemList:mItems:TimelineTask \\"' + timelinesItemListObj.Name + '\\""\r';
+	}
+  if(timelinesItemListObj.hasOwnProperty("ItemList")) { 						// We are parsing an ItemList (main tree or folder)
+  	var items = [];
+    if(timelinesItemListObj.hasOwnProperty("Name")) {
+    	parentName+= ':mItemList:mItems:TaskFolder \\"' + timelinesItemListObj.Name + '\\" ';
+    } else {
+    	parentName = 'getStatus 1 "TaskList' + parentName;
+    }
+    timelinesItemListObj.ItemList.forEach(itemListObj => {
+      items.push(self.buildSubscriptionStrings(itemListObj, parentName));
+    });
+    return items.flat();
+	}
 }
 
 instance_skel.extendedBy(instance);

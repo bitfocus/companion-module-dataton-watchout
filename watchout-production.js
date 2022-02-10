@@ -66,7 +66,7 @@ function instance(system, id, config) {
 				}
 			}
 		},
-		// Icons are similar to the ones used in Watchout
+		// Icons for feedbacks are similar to the ones used in Watchout
 		images: {
 			play: "iVBORw0KGgoAAAANSUhEUgAAACgAAAARCAYAAACvi+4IAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA7ElEQVRIic3WP05CQRDH8Q8EKxo5AKcwsZbQaGdJD7UVpScwyg3o1cQLaGIojIQCW4+hjZUFFu8Zecqf9x7I7jfZbHZnZveX2UlmK5iJmBp8HByVPqA+Ha13+k7BEL1i59cK6tmMLl4xwVO+kIzAXNlIKZ31y3Tu4Ga9e7XcLVvgGm84XO0WTiDsY4xH9Be77LYGF1FFKx1NybM/Z83xcIZztH+24hIIJ7jHZ7KMT+ADTrGXLMPX4DwD3MnUYHiBM7zgFhd/zWEFvuNY0lmWEK4GO2hYKY5fGdzk05CbvvK9+N8Z4qpYSEXk/8EvpY4lbjcQqfcAAAAASUVORK5CYII=",
 			pause: "iVBORw0KGgoAAAANSUhEUgAAACgAAAARCAYAAACvi+4IAAAACXBIWXMAAAsTAAALEwEAmpwYAAABJElEQVRIic3Wv0oDQRAG8F8kVjZpLO30CQQbG8VGO0sbFdQ6WKT0CURtrNNoo4IvoBAsRLHQ1kJbKwXTCIJFLHaPGPyTywXv8sGyw+03ex+zM8yU0DLAKMPb5EzmC0ZuL7qTkhDUsdHb/eUe9fSHddzjBpfpXDoEpopGROao78R9Ccfd6UPZ/pIRJTxG+wivmPrbJV+BMIEVnKCCazRQ+5mebw4mOMQT3gWxs3GNCc9+1abmH8EEDayiipf4rYotzLVpxQlMsI9RoWiaWMAZPsJx8QI38SwUTQXnWMRwOC4mB2Eaa3El2MOpjhwsRuAyDqLdwp1Q1dvfqfkLfMB4tJuYFzrLL8hX4NexJGUn6RDYz9CQGjXZe/G/o47d3lxKBnwe/AQw2jSbUiV2YwAAAABJRU5ErkJggg==",
@@ -617,7 +617,37 @@ instance.prototype.parseAuxTimelines = function(timelinesItemListObj) {
 		_.eachRight(timelinesItemListObj.ItemList, itemListObj => {
       items.push(self.parseAuxTimelines(itemListObj));
     });
-		// Get rid of nested array and return it
+		// Get rid of nested arrays and return it
+    return items.flat();
+	}
+}
+
+// Recursive function to create a list of command strings to be used to subscribe tasks update
+// We need this because to subscribe the updates it is mandatory to specify the folder structure (if there is any)
+// "prefix" parameter is only used during recursion
+// Examples of subscription strings:
+// getStatus 1 "TaskList:mItemList:mItems:TimelineTask \"TASK NAME\""\r
+// getStatus 1 "TaskList:mItemList:mItems:TaskFolder \\"FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
+// getStatus 1 "TaskList:mItemList:mItems:TaskFolder \\"MAIN FOLDER\\" :mItemList:mItems:TaskFolder \\"SUB FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
+instance.prototype.buildSubscriptionStrings = function(timelinesItemListObj, prefix = "") {
+	var self = this;
+	if(timelinesItemListObj.hasOwnProperty("Duration")) { 						// Exit condition, we are parsing a timeline
+		return prefix + ':mItemList:mItems:TimelineTask \\"' + timelinesItemListObj.Name + '\\""\r';
+	}
+  if(timelinesItemListObj.hasOwnProperty("ItemList")) { 						// We are parsing an ItemList (main tree or folder)
+    if(timelinesItemListObj.hasOwnProperty("Name")) {
+			// If an timelinesItemListObj hasn't a Duration but has both ItemList and Name properties, it's a folder
+    	prefix+= ':mItemList:mItems:TaskFolder \\"' + timelinesItemListObj.Name + '\\" ';
+    } else {
+			// Otherwise we are beginning our recursion
+    	prefix = 'getStatus 1 "TaskList';
+    }
+		var items = [];
+		// Iterate on the timelinesItemListObj and go into deeper levels with recursion
+    timelinesItemListObj.ItemList.forEach(itemListObj => {
+      items.push(self.buildSubscriptionStrings(itemListObj, prefix));
+    });
+		// Get rid of nested arrays and return it
     return items.flat();
 	}
 }
@@ -783,34 +813,6 @@ instance.prototype.buildPresets = function(timeline) {
 	});
 
 	return presets;
-}
-
-// Recursive function to create a list of command strings to be used to subscribe tasks update
-// We need this because to subscribe the updates it is mandatory to specify the folder structure (if there is any)
-// "prefix" parameter is only used during recursion
-// Examples of subscription strings:
-// getStatus 1 "TaskList:mItemList:mItems:TimelineTask \"TASK NAME\""\r
-// getStatus 1 "TaskList:mItemList:mItems:TaskFolder \\"FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
-// getStatus 1 "TaskList:mItemList:mItems:TaskFolder \\"MAIN FOLDER\\" :mItemList:mItems:TaskFolder \\"SUB FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
-instance.prototype.buildSubscriptionStrings = function(timelinesItemListObj, prefix = "") {
-	var self = this;
-	if(timelinesItemListObj.hasOwnProperty("Duration")) { 						// Exit condition, we are parsing a timeline
-		return prefix + ':mItemList:mItems:TimelineTask \\"' + timelinesItemListObj.Name + '\\""\r';
-	}
-  if(timelinesItemListObj.hasOwnProperty("ItemList")) { 						// We are parsing an ItemList (main tree or folder)
-  	var items = [];
-    if(timelinesItemListObj.hasOwnProperty("Name")) {
-			// If an timelinesItemListObj hasn't a Duration but has both ItemList and Name properties, it's a folder
-    	prefix+= ':mItemList:mItems:TaskFolder \\"' + timelinesItemListObj.Name + '\\" ';
-    } else {
-			// Otherwise we are beginning our recursion
-    	prefix = 'getStatus 1 "TaskList';// + prefix;
-    }
-    timelinesItemListObj.ItemList.forEach(itemListObj => {
-      items.push(self.buildSubscriptionStrings(itemListObj, prefix));
-    });
-    return items.flat();
-	}
 }
 
 instance_skel.extendedBy(instance);

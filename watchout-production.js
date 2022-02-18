@@ -1,5 +1,6 @@
 var tcp = require('../../tcp');
 var instance_skel = require('../../instance_skel');
+const GetUpgradeScripts = require('./upgrades');
 var debug;
 var log;
 
@@ -31,6 +32,8 @@ function instance(system, id, config) {
 
 	return self;
 }
+
+instance.GetUpgradeScripts = GetUpgradeScripts;
 
 instance.prototype.init = function() {
 	var self = this;

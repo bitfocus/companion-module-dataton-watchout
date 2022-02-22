@@ -35,8 +35,8 @@ module.exports = {
 				}
 			],
 			callback: (feedback, bank) => {
-				if (self.auxTimelinesStatus.hasOwnProperty(feedback.options.timeline)) {
-					var status = self.auxTimelinesStatus[feedback.options.timeline].status;
+				if (self.taskData.hasOwnProperty(feedback.options.timeline)) {
+					var status = self.taskData[feedback.options.timeline].status;
 					if(feedback.options.icons) {
 	          if(status == 2) { // play
 	            return {
@@ -53,7 +53,13 @@ module.exports = {
 	          }
 					}
         }
-			}
+			},
+			subscribe: function (feedback) {
+				self.manageSubscription(feedback.options.timeline, true);
+	    },
+	    unsubscribe: function (feedback) {
+				self.manageSubscription(feedback.options.timeline, false);
+	    }
 		};
 
 		feedbacks['task_paused'] = {
@@ -88,8 +94,8 @@ module.exports = {
 				}
 			],
 			callback: (feedback, bank) => {
-				if (self.auxTimelinesStatus.hasOwnProperty(feedback.options.timeline)) {
-					var status = self.auxTimelinesStatus[feedback.options.timeline].status;
+				if (self.taskData.hasOwnProperty(feedback.options.timeline)) {
+					var status = self.taskData[feedback.options.timeline].status;
 					if(feedback.options.icons) {
 	          if(status == 1) { //pause
 	            return {
@@ -106,7 +112,13 @@ module.exports = {
 	          }
 					}
         }
-			}
+			},
+			subscribe: function (feedback) {
+				self.manageSubscription(feedback.options.timeline, true);
+	    },
+	    unsubscribe: function (feedback) {
+				self.manageSubscription(feedback.options.timeline, false);
+	    }
 		};
 
 		feedbacks['task_stopped'] = {
@@ -141,8 +153,8 @@ module.exports = {
 				}
 			],
 			callback: (feedback, bank) => {
-				if (self.auxTimelinesStatus.hasOwnProperty(feedback.options.timeline)) {
-					var status = self.auxTimelinesStatus[feedback.options.timeline].status;
+				if (self.taskData.hasOwnProperty(feedback.options.timeline)) {
+					var status = self.taskData[feedback.options.timeline].status;
 					if(feedback.options.icons) {
 	          if(status == 0) { //stop
 	            return {
@@ -159,7 +171,13 @@ module.exports = {
 	          }
 					}
         }
-			}
+			},
+			subscribe: function (feedback) {
+				self.manageSubscription(feedback.options.timeline, true);
+	    },
+	    unsubscribe: function (feedback) {
+				self.manageSubscription(feedback.options.timeline, false);
+	    }
 		};
 
 		return feedbacks;

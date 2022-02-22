@@ -30,6 +30,5 @@
 		"url": "git+https://github.com/bitfocus/companion-module-dataton-watchout.git"
 	},
 	"dependencies": {
-    "lodash": "^4.17.21"
   }
 }

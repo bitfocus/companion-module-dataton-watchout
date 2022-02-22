@@ -3,7 +3,6 @@ var instance_skel = require('../../instance_skel');
 let feedbacks 		= require('./feedbacks');
 let presets 			= require('./presets');
 let variables			= require('./variables');
-const _ 					= require('lodash');
 var debug;
 var log;
 
@@ -11,11 +10,11 @@ var log;
 
 function instance(system, id, config) {
 	var self = this;
+	self.refreshSubscriptions = false;
 	self.maxConditions = 30;
+	self.taskData = {'': {name: "Main timeline"}};
 	self.choicesConditions = [];
-	self.auxTimelinesChoices = [];// [{ id: '', label: 'Main' }];
-	self.auxTimelinesSubscriptionStrings = [];
-	self.auxTimelinesStatus = {};
+	self.auxTimelinesChoices = [];
 
 	// Some regex to parse messages from Watchout
 	self.regex = {
@@ -84,7 +83,7 @@ function instance(system, id, config) {
 	// super-constructor
 	instance_skel.apply(this, arguments);
 
-	self.actions(); // export actions
+
 
 	Object.assign(self, {
 		...feedbacks,
@@ -100,6 +99,9 @@ instance.prototype.init = function() {
 
 	debug = self.debug;
 	log = self.log;
+
+	self.refreshSubscriptions = true;
+	self.actions(); // export actions
 	self.initFeedbacks();
 	self.initPresets();
 	self.initVariables();
@@ -109,11 +111,98 @@ instance.prototype.init = function() {
 instance.prototype.updateConfig = function(config) {
 	var self = this;
 	self.config = config;
+	self.refreshSubscriptions = true;
+	self.actions();
 	self.initFeedbacks();
 	self.initPresets();
 	self.initVariables();
 	self.init_tcp();
 };
+
+// Force re-subscription only to required tasks updates
+instance.prototype.checkSubscriptions = function() {
+	let self = this;
+	// Unsubscribe all task update
+	for (const [task, properties] of Object.entries(self.taskData)) {
+		if(properties.subscriptions > 0) {
+			self.manageSubscription(task, false);
+		}
+		// Reset all the counters
+		properties.subscriptions = 0;
+	}
+	// Fire subscribe function for actions that have one in their definition
+	self.subscribeActions();
+	// Fire subscribe function for feedbacks that have one in their definition
+	self.subscribeFeedbacks();
+}
+
+// Recursive function to create a structured object that keeps track of task data.
+// This function also builds the command strings to be used to subscribe tasks update.
+// We need this command because to subscribe the updates it is mandatory to specify the folder structure (if there is any)
+// "prefix" parameter is only used during recursion
+// Examples of subscription strings (getStatus 1 or 0 + the following):
+// "TaskList:mItemList:mItems:TimelineTask \"TASK NAME\""\r
+// "TaskList:mItemList:mItems:TaskFolder \\"FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
+// "TaskList:mItemList:mItems:TaskFolder \\"MAIN FOLDER\\" :mItemList:mItems:TaskFolder \\"SUB FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
+instance.prototype.buildTaskObj = function(timelinesItemListObj, prefix = "") {
+	let self = this;
+	if(timelinesItemListObj.hasOwnProperty("Duration")) {		// Exit condition, we are parsing a timeline
+		// The string for subscribing/unsubscribing to the updates
+		let subscribeCmd = prefix + ':mItemList:mItems:TimelineTask \\"' + timelinesItemListObj.Name + '\\""\r';
+		// The name of the task
+    let name = timelinesItemListObj.Name;
+		// Return a structured object which will contain all useful data about the timeline
+    return {
+			[name]: {												// The key is the name of the task or an empty string for the main timeline
+				name: name,										// We need this to manage main timeline
+        subscribeCmd: subscribeCmd,		// The string for subscribing/unsubscribing to the updates
+        subscriptions: 0,			// How many feedbacks are listening to this task updates
+				status: undefined,						// 0, 1 or 2 for Stop/Halt/Run
+				position: undefined,					// Playhead position
+				updated: undefined						// Last update (milliseconds from Watchout project loading)
+      }
+    };
+	}
+  if(timelinesItemListObj.hasOwnProperty("ItemList")) { 						// We are parsing an ItemList (main tree or folder)
+    if(timelinesItemListObj.hasOwnProperty("Name")) {
+			// If an timelinesItemListObj hasn't a Duration but has both ItemList and Name properties, it's a folder
+    	prefix+= ':mItemList:mItems:TaskFolder \\"' + timelinesItemListObj.Name + '\\" ';
+    } else {
+			// Otherwise we are beginning our recursion
+    	prefix = '"TaskList';
+    }
+		let items = {};
+		// Iterate on the timelinesItemListObj and go into deeper levels with recursion
+    timelinesItemListObj.ItemList.forEach(itemListObj => {
+      let parsed = self.buildTaskObj(itemListObj, prefix);
+      Object.assign(items, parsed);
+    });
+    return items;
+	}
+}
+
+// Manage subscriptions/unsubscriptions to task updates
+instance.prototype.manageSubscription = function(task, subscribe) {
+	var self = this;
+	// Check we have the data for the required task and if that task isn't the main timeline
+	if(self.taskData.hasOwnProperty(task) && task != '') {
+		if(subscribe === true) { // Some feedback/actions needs the updates about this task
+			if(self.taskData[task].subscriptions == 0) {
+				// This is the first time we need the subscription, we need to request the updates from watchout
+				self.socket.send('getStatus 1 ' + self.taskData[task].subscribeCmd);
+			}
+			// Another feedback/action is listening to the status update of this task
+			self.taskData[task].subscriptions++;
+		} else {
+			// One feedback/action has been removed and we no longer need the updates for it
+			self.taskData[task].subscriptions--;
+			if(self.taskData[task].subscriptions == 0) {
+				// No one is still listening to the status updates, let's cancel our subscription to the updates from watchout
+				self.socket.send('getStatus 0 ' + self.taskData[task].subscribeCmd);
+			}
+		}
+	}
+}
 
 instance.prototype.init_tcp = function() {
 	var self = this;
@@ -164,31 +253,55 @@ instance.prototype.init_tcp = function() {
 				if(type == "Reply") {
 					// TODO: add some checks on the reply we are getting
 					try { // Try to parse a reply to: GetAuxTimelines tree
-						var content_JSON = JSON.parse(content); // Reply content
-						// Get task list from task tree to be used in dropdown menus
-						self.auxTimelinesChoices = self.parseAuxTimelines(content_JSON);
-						// Add the main timeline to the list
-						self.auxTimelinesChoices.push({ id: '', label: 'Main' });
-						// Build subscription strings and check if there are new tasks to subscribe to
-						var auxTimelinesSubscriptionStringsDiff = _.difference(self.buildSubscriptionStrings(content_JSON), self.auxTimelinesSubscriptionStrings);
-						if(auxTimelinesSubscriptionStringsDiff.length !== 0) { // We have new tasks!
-							//Subscribe to new tasks
-							auxTimelinesSubscriptionStringsDiff.forEach(subscriptionString => {
-								self.socket.send(subscriptionString);
-							});
-							// Remember which tasks we subscribed to
-							self.auxTimelinesSubscriptionStrings.push(...auxTimelinesSubscriptionStringsDiff);
-							self.actions(); // Update actions (refresh all dropdown menus)
-							self.initFeedbacks(); // Update feedbacks (refresh all dropdown menus)
-							// Rebuild the presets from scratch
-							let newPresets = self.getPresets();
-							for (const timeline of self.auxTimelinesChoices) {
-								newPresets.push(...self.buildPresets(timeline));
-							}
-							self.setPresetDefinitions(newPresets);
+						// Reply content is in JSON format
+						var content_obj = JSON.parse(content);
+						// Convert the object given from Watchout into a more useful one
+						// The first object of taskData/newTaskData is always the main timeline, we need to copy
+						// its values manually because the main timeline isn't included in "getAuxTimelines tree" reply
+						var newTaskData = Object.assign({['']: self.taskData['']}, self.buildTaskObj(content_obj));
+
+						// Remove deleted tasks
+						for (const [key, value] of Object.entries(self.taskData)) {
+						  if(newTaskData[key] === undefined) {
+						  	delete(self.taskData[key]);
+						  }
+						}
+
+						// Create a list of task choices to be used in dropdown menus
+						// The main timeline is always present
+						let newChoices = [];
+
+						// New tasks (if a task is moved inside a folder it is considered a new/different one)
+						// We copy old status data into newTaskData to make sure that task order is the same as in Watchout task list
+						for (const [task, properties] of Object.entries(newTaskData)) {
+						  if(self.taskData[task] === undefined || self.taskData[task].subscribeCmd != properties.subscribeCmd) {	// New task
+						  	tasksChanged = true;
+						  } else {	// Task is already known, copy status data
+						  	properties.subscriptions = self.taskData[task].subscriptions;
+						    properties.status = self.taskData[task].status;
+						    properties.position = self.taskData[task].position;
+						    properties.updated = self.taskData[task].updated;
+						  }
+							newChoices.push({id: task, label: properties.name});
+						}
+
+						self.auxTimelinesChoices = newChoices.reverse();
+						self.taskData = newTaskData;
+
+						self.actions(); // Update actions (refresh all dropdown menus)
+						self.initFeedbacks(); // Update feedbacks (refresh all dropdown menus)
+						// Rebuild the presets from scratch
+						let newPresets = self.getPresets();
+						for (const timeline of self.auxTimelinesChoices) {
+							newPresets.push(...self.buildPresets(timeline));
+						}
+						self.setPresetDefinitions(newPresets);
+
+						if(self.refreshSubscriptions == true) {
+							self.checkSubscriptions();
+							self.refreshSubscriptions = false;
 						}
 					} catch(e) {
-						self.log('warning', "Cannot parse reply message. " + e);
 						if(e == "SyntaxError: Unexpected end of JSON input") {
 							// TODO: send the same command again?
 						}
@@ -199,11 +312,9 @@ instance.prototype.init_tcp = function() {
 					if(taskStatusMatches.length > 0) {
 						// Should be a single line/match
 						for(const match of taskStatusMatches) {
-							self.auxTimelinesStatus[match[1]] = {
-								status: match[2],
-								position: match[3],
-								updated: match[4]
-							}
+							self.taskData[match[1]].status = match[2];
+							self.taskData[match[1]].position = match[3];
+							self.taskData[match[1]].updated = match[4];
 						}
 						self.checkFeedbacks();
 						//continue;
@@ -213,12 +324,11 @@ instance.prototype.init_tcp = function() {
 					if(generalStatusMatches.length > 0) {
 						// Should be a single line/match
 						for(const match of generalStatusMatches) {
-							self.auxTimelinesStatus[""] = {
-								status: (match[9] == "true") ? 2 : 1,
-								position: match[8],
-								updated: match[13]
+							self.taskData[""].status = (match[9] == "true") ? 2 : 1;
+							self.taskData[""].position = match[8];
+							self.taskData[""].updated = match[13];
 								// TODO: store other status data in the istance?
-							}
+
 
 							// Update variables
 							let clusterHealth = '';
@@ -420,7 +530,13 @@ instance.prototype.actions = function(system) {
 			},
 			'toggleRun': {
 				label: 'Toggle run',
-				options: [timelineOption]
+				options: [timelineOption],
+				subscribe: function(action) {
+					self.manageSubscription(action.options.timeline, true);
+		    },
+		    unsubscribe: function(action) {
+					self.manageSubscription(action.options.timeline, false);
+		    }
 			}
 		});
 	}
@@ -536,7 +652,7 @@ instance.prototype.action = function(action) {
 			break;
 
 		case 'toggleRun':
-			if(self.auxTimelinesStatus[action.options.timeline].status == 2) {
+			if(self.taskData[action.options.timeline].status == 2) {
 				cmd = 'halt "' + action.options.timeline + '"\r\n';
 			} else {
 				cmd = 'run "' + action.options.timeline + '"\r\n';
@@ -588,56 +704,6 @@ instance.prototype.initVariables = function() {
 	} else {
 		// TODO: delete varaibles if self.config.feedback is toggled from true to false
 		//self.setVariableDefinitions([]);
-	}
-}
-
-// Recursive function to create a list of timelines to be used in dropdown menus
-instance.prototype.parseAuxTimelines = function(timelinesItemListObj) {
-	var self = this;
-	if(timelinesItemListObj.hasOwnProperty('Duration')) { 						// Exit condition, we are parsing a timeline
-		return {
-			id: timelinesItemListObj.Name,
-			label: timelinesItemListObj.Name
-		};
-	}
-  if(timelinesItemListObj.hasOwnProperty('ItemList')) { 						// We are parsing an ItemList (main tree or folder)
-  	var items = [];
-		// Iterate timelines list object in reverse order to preserve the "normal" order in dropdown menus
-		_.eachRight(timelinesItemListObj.ItemList, itemListObj => {
-      items.push(self.parseAuxTimelines(itemListObj));
-    });
-		// Get rid of nested arrays and return it
-    return items.flat();
-	}
-}
-
-// Recursive function to create a list of command strings to be used to subscribe tasks update
-// We need this because to subscribe the updates it is mandatory to specify the folder structure (if there is any)
-// "prefix" parameter is only used during recursion
-// Examples of subscription strings:
-// getStatus 1 "TaskList:mItemList:mItems:TimelineTask \"TASK NAME\""\r
-// getStatus 1 "TaskList:mItemList:mItems:TaskFolder \\"FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
-// getStatus 1 "TaskList:mItemList:mItems:TaskFolder \\"MAIN FOLDER\\" :mItemList:mItems:TaskFolder \\"SUB FOLDER\\" :mItemList:mItems:TimelineTask \\"TASK NAME\\""\r
-instance.prototype.buildSubscriptionStrings = function(timelinesItemListObj, prefix = "") {
-	var self = this;
-	if(timelinesItemListObj.hasOwnProperty("Duration")) { 						// Exit condition, we are parsing a timeline
-		return prefix + ':mItemList:mItems:TimelineTask \\"' + timelinesItemListObj.Name + '\\""\r';
-	}
-  if(timelinesItemListObj.hasOwnProperty("ItemList")) { 						// We are parsing an ItemList (main tree or folder)
-    if(timelinesItemListObj.hasOwnProperty("Name")) {
-			// If an timelinesItemListObj hasn't a Duration but has both ItemList and Name properties, it's a folder
-    	prefix+= ':mItemList:mItems:TaskFolder \\"' + timelinesItemListObj.Name + '\\" ';
-    } else {
-			// Otherwise we are beginning our recursion
-    	prefix = 'getStatus 1 "TaskList';
-    }
-		var items = [];
-		// Iterate on the timelinesItemListObj and go into deeper levels with recursion
-    timelinesItemListObj.ItemList.forEach(itemListObj => {
-      items.push(self.buildSubscriptionStrings(itemListObj, prefix));
-    });
-		// Get rid of nested arrays and return it
-    return items.flat();
 	}
 }
 

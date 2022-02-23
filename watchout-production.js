@@ -1,5 +1,6 @@
 var tcp = require('../../tcp');
 var instance_skel = require('../../instance_skel');
+const GetUpgradeScripts = require('./upgrades');
 var debug;
 var log;
 
@@ -16,6 +17,14 @@ function instance(system, id, config) {
 			default: false
 		}
 	}
+	// Extra checkbox to force the use of the conditions previously set in the producer's GUI
+	this.choicesConditions[this.maxConditions] = {
+		type: 'checkbox',
+		label: 'Force to default GUI conditions',
+		id: this.maxConditions,
+		default: false
+	}
+
 	// super-constructor
 	instance_skel.apply(this, arguments);
 
@@ -23,6 +32,8 @@ function instance(system, id, config) {
 
 	return self;
 }
+
+instance.GetUpgradeScripts = GetUpgradeScripts;
 
 instance.prototype.init = function() {
 	var self = this;
@@ -329,6 +340,14 @@ instance.prototype.action = function(action) {
 				if (action.options[i] === true) {
 					cond += 2**i;
 				}
+			}
+			// To disable all conditions (no conditions are checked) the correct value to be sent is 2^30
+			if(cond == 0) {
+				cond = 2**30;
+			}
+			// A value equal to 0 tells Watchout to apply default conditions (the ones set in the producer GUI, before TCP commands)
+			if(action.options[`${this.maxConditions}`] === true) {
+				cond = 0;
 			}
 			cmd = 'enableLayerCond ' + cond +'\r\n';
 			break;

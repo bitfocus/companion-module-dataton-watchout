@@ -12,6 +12,14 @@ module.exports = {
       { name: 'playingMain',      label: 'Main timeline is playing' },
       { name: 'standby',          label: 'Standby' }
     ];
-    return variables;
+
+		if(self.config.feedback === 'advanced') {
+			for (const timeline of self.auxTimelinesChoices) {
+				if(timeline.id != '') {
+					variables.push({name: 'TASK_STATUS_' + timeline.id.replace(/ /g, '_'), label : timeline.id + " status"});
+				}
+			}
+		}
+		return variables;
   }
 }

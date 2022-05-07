@@ -16,7 +16,7 @@ module.exports = {
 		if(self.config.feedback === 'advanced') {
 			for (const timeline of self.auxTimelinesChoices) {
 				if(timeline.id != '') {
-					variables.push({name: 'TASK_STATUS_' + timeline.id.replace(/ /g, '_'), label : timeline.id + " status"});
+					variables.push({name: 'status ' + timeline.id, label : timeline.id + " status"});
 				}
 			}
 		}

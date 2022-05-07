@@ -345,7 +345,7 @@ instance.prototype.init_tcp = function() {
 								} else if (match[2] == 2) {
 									status = 'play';
 								}
-								self.setVariable('TASK_STATUS_' + match[1].replace(/ /g, '_'), status);
+								self.setVariable('status ' + match[1], status);
 							}
 						}
 						self.checkFeedbacks();

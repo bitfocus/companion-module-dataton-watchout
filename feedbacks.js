@@ -36,16 +36,15 @@ module.exports = {
 			],
 			callback: (feedback, bank) => {
 				if (self.taskData.hasOwnProperty(feedback.options.timeline)) {
-					var status = self.taskData[feedback.options.timeline].status;
 					if(feedback.options.icons) {
-	          if(status == 2) { // play
+	          if(self.taskData[feedback.options.timeline].status == 2) { // play
 	            return {
 								png64: self.feedbacksSettings.images.play,
 								pngalignment: "center:bottom"
 							}
 						}
 					} else {
-						if(status == 2) { //play
+						if(self.taskData[feedback.options.timeline].status == 2) { //play
 	            return {
 	              color   : feedback.options.playfg,
 	              bgcolor : feedback.options.playbg
@@ -95,16 +94,15 @@ module.exports = {
 			],
 			callback: (feedback, bank) => {
 				if (self.taskData.hasOwnProperty(feedback.options.timeline)) {
-					var status = self.taskData[feedback.options.timeline].status;
 					if(feedback.options.icons) {
-	          if(status == 1) { //pause
+	          if(self.taskData[feedback.options.timeline].status == 1) { //pause
 	            return {
 								png64: self.feedbacksSettings.images.pause,
 								pngalignment: "center:bottom"
 							 }
 	          }
 					} else {
-						if(status == 1) { //pause
+						if(self.taskData[feedback.options.timeline].status == 1) { //pause
 							return {
 								color   : feedback.options.pausefg,
 								bgcolor : feedback.options.pausebg
@@ -154,16 +152,15 @@ module.exports = {
 			],
 			callback: (feedback, bank) => {
 				if (self.taskData.hasOwnProperty(feedback.options.timeline)) {
-					var status = self.taskData[feedback.options.timeline].status;
 					if(feedback.options.icons) {
-	          if(status == 0) { //stop
+	          if(self.taskData[feedback.options.timeline].status == 0) { //stop
 	            return {
 								png64: self.feedbacksSettings.images.stop,
 								pngalignment: "center:bottom"
 							}
 	          }
 					} else {
-						if(status == 0) { // stop
+						if(self.taskData[feedback.options.timeline].status == 0) { // stop
 							return {
 								color   : feedback.options.stopfg,
 								bgcolor : feedback.options.stopbg

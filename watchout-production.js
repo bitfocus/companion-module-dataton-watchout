@@ -334,18 +334,20 @@ instance.prototype.init_tcp = function() {
 					if(taskStatusMatches.length > 0) {
 						// Should be a single line/match
 						for(const match of taskStatusMatches) {
-							self.taskData[match[1]].status = match[2];
-							self.taskData[match[1]].position = match[3];
-							self.taskData[match[1]].updated = match[4];
+							if(self.taskData.hasOwnProperty(match[1])) {
+								self.taskData[match[1]].status = match[2];
+								self.taskData[match[1]].position = match[3];
+								self.taskData[match[1]].updated = match[4];
 
-							if(self.config.feedback === 'advanced') {
-								var status = 'stop';
-								if(match[2] == 1) {
-									status = 'pause';
-								} else if (match[2] == 2) {
-									status = 'play';
+								if(self.config.feedback === 'advanced') {
+									var status = 'stop';
+									if(match[2] == 1) {
+										status = 'pause';
+									} else if (match[2] == 2) {
+										status = 'play';
+									}
+									self.setVariable('status ' + match[1], status);
 								}
-								self.setVariable('status ' + match[1], status);
 							}
 						}
 						self.checkFeedbacks();

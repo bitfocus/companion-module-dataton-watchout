@@ -37,4 +37,11 @@ There is no polling going on for feedbacks and variables, the production PC send
 Polling will automatically keep updated the task list used in this instance for dropdown menus, presets, feedback and variables.
 Network traffic and load on production PC will increase.
 
-If polling is disable you need to use **"Get Aux Timelines Names"** action manually to refresh the task list and presets.
+If polling is disable you need to use **"Get Aux Timelines Names"** action manually to refresh the task list.
+
+**Feedback and task deletion warning**
+
+If you delete a task when a feedback/variable is active, its status will appear as "stop" and Watchout will continue sending updates on that
+task status, even if it has been deleted. If you later create a new task with the same name as the old one, feedbacks from the new and the old
+task will mix up and status will keep changing from "stop" (the old, deleted task status) and the correct one from the new task. To fix this
+error just disable and enable the instance. Unfortunately this bug comes from Watchout and is not controllable by Companion.

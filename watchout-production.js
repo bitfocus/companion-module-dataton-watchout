@@ -16,6 +16,7 @@ function instance(system, id, config) {
 	self.taskData = {'': {name: "Main timeline"}};
 	self.choicesConditions = [];
 	self.auxTimelinesChoices = [];
+	self.pollingTimer = null;
 
 	// Some regex to parse messages from Watchout
 	self.regex = {
@@ -215,12 +216,33 @@ instance.prototype.manageSubscription = function(task, subscribe) {
 	}
 }
 
+instance.prototype.poll = function() {
+	var self = this;
+	if(self.socket !== undefined) {
+		if(self.config.pollTaskListEnable === true) {
+			self.socket.send('getAuxTimelines tree\r\n');
+		} else {
+			self.stopPolling();
+		}
+	}
+}
+
+instance.prototype.stopPolling = function() {
+	var self = this;
+	if(self.pollingTimer !== null) {
+		clearInterval(self.pollingTimer);
+		self.pollingTimer = null;
+	}
+}
+
 instance.prototype.init_tcp = function() {
 	var self = this;
 	if (self.socket !== undefined) {
 		self.socket.destroy();
 		delete self.socket;
 	}
+
+	self.stopPolling();
 
 	if (self.config.host) {
 		var port = 3040;
@@ -248,6 +270,10 @@ instance.prototype.init_tcp = function() {
 				// TODO: wait to be authenticated, if necessary
 				self.socket.send('getStatus 1\r\n'); // Subscribe main timeline updates
 				self.socket.send('getAuxTimelines tree\r\n'); // Get a list of timelines and folders
+				if(self.config.pollTaskListEnable === true) {
+					self.stopPolling();
+					self.pollingTimer = setInterval(self.poll.bind(self), self.config.pollingInterval * 1000);
+				}
 			}
 		});
 
@@ -263,20 +289,13 @@ instance.prototype.init_tcp = function() {
 				var content = message[2];
 				if(type == "Reply") {
 					// TODO: add some checks on the reply we are getting
-					try { // Try to parse a reply to: GetAuxTimelines tree
+					try { // Try to parse a reply to: GetAuxTimelines tree. Sometimes the JSON is truncated and invalid
 						// Reply content is in JSON format
 						var content_obj = JSON.parse(content);
 						// Convert the object given from Watchout into a more useful one
 						// The first object of taskData/newTaskData is always the main timeline, we need to copy
 						// its values manually because the main timeline isn't included in "getAuxTimelines tree" reply
 						var newTaskData = Object.assign({['']: self.taskData['']}, self.buildTaskObj(content_obj));
-
-						// Remove deleted tasks
-						for (const [key, value] of Object.entries(self.taskData)) {
-						  if(newTaskData[key] === undefined) {
-						  	delete(self.taskData[key]);
-						  }
-						}
 
 						// Create a list of task choices to be used in dropdown menus
 						// The main timeline is always present
@@ -286,8 +305,15 @@ instance.prototype.init_tcp = function() {
 						// We copy old status data into newTaskData to make sure that task order is the same as in Watchout task list
 						for (const [task, properties] of Object.entries(newTaskData)) {
 						  if(self.taskData[task] === undefined || self.taskData[task].subscribeCmd != properties.subscribeCmd) {	// New task
-						  	tasksChanged = true;
-						  } else {	// Task is already known, copy status data
+						  	// Initialize properties of new task
+								properties.subscriptions = 0;
+								properties.status = 'unknown';
+								properties.position = 'unknown';
+								properties.updated = 'unknown';
+								// Set flags to refresh presets, feedbacks, variables and dropdown menus
+								self.refreshSubscriptions = true;
+						  } else {
+								// Task is already known, copy status data
 						  	properties.subscriptions = self.taskData[task].subscriptions;
 						    properties.status = self.taskData[task].status;
 						    properties.position = self.taskData[task].position;
@@ -295,21 +321,33 @@ instance.prototype.init_tcp = function() {
 						  }
 							newChoices.push({id: task, label: properties.name});
 						}
+						newChoices.reverse();
 
-						self.auxTimelinesChoices = newChoices.reverse();
-						self.taskData = newTaskData;
+						if(JSON.stringify(newChoices) != JSON.stringify(self.auxTimelinesChoices)) {
+							// Something changed in the task list (maybe just the order or new/deleted tasks)
+							self.auxTimelinesChoices = newChoices;
+						}
+						if(JSON.stringify(newTaskData) != JSON.stringify(self.taskData)) {
+							// The received data is different from the stored one
+							self.taskData = newTaskData;
 
-						self.actions(); // Update actions (refresh all dropdown menus)
-						self.initFeedbacks(); // Update feedbacks (refresh all dropdown menus)
-						// Rebuild the presets from scratch
-						let newPresets = self.getPresets();
-						if(self.config.feedback === 'advanced') {
-							self.initVariables();
+							self.actions(); // Update actions (refresh all dropdown menus)
+							self.initFeedbacks(); // Update feedbacks (refresh all dropdown menus)
+							// Rebuild the presets from scratch
+							let newPresets = self.getPresets();
+							if(self.config.feedback == 'advanced') {
+								self.initVariables();
+								for (const [task, properties] of Object.entries(self.taskData)) {
+									if(task != '' && properties.subscriptions == 0) {
+										self.manageSubscription(task, true);
+									}
+								}
+							}
+							for (const timeline of self.auxTimelinesChoices) {
+								newPresets.push(...self.buildPresets(timeline));
+							}
+							self.setPresetDefinitions(newPresets);
 						}
-						for (const timeline of self.auxTimelinesChoices) {
-							newPresets.push(...self.buildPresets(timeline));
-						}
-						self.setPresetDefinitions(newPresets);
 
 						if(self.refreshSubscriptions == true) {
 							self.resetSubscriptions();
@@ -327,6 +365,7 @@ instance.prototype.init_tcp = function() {
 							// Data is corrupted, send the same command again
 							self.socket.send('getAuxTimelines tree\r\n'); // Get a list of timelines and folders
 						}
+						debug("Error: " + e);
 					}
 				} else if(type == "Status") {
 					// Maybe it's a task status update message
@@ -436,6 +475,25 @@ instance.prototype.config_fields = function () {
 				{ id: 'simple', label: 'Simple (feedbacks only)' },
 				{ id: 'advanced', label: 'Advanced (feedbacks and variables)' }
 			]
+		},{
+      type: 'checkbox',
+      id: 'pollTaskListEnable',
+      width: 1,
+      label: 'Polling',
+      default: false,
+    },{
+      type: 'text',
+      id: 'pollTaskListMessage',
+      width: 11,
+      label: 'Poll for task list updates',
+      value: 'Automatically update the task list used in dropdown menus, presets, variables and feedbacks.<br><b>If polling is disabled, use the action "Get Aux Timelines Names" to refresh manually.</b>'
+    },{
+		  type: 'textinput',
+			id: 'pollingInterval',
+		  label: 'Polling interval (seconds):',
+		  regex: self.REGEX_NUMBER,
+			width: 6,
+			default: 30
 		}
 	]
 };
@@ -448,6 +506,8 @@ instance.prototype.destroy = function() {
 		self.socket.destroy();
 		self.socket = undefined;
 	}
+
+	self.stopPolling();
 
 	debug("destroy", self.id);
 };
@@ -747,9 +807,12 @@ instance.prototype.initPresets = function() {
 
 instance.prototype.initVariables = function() {
 	var self = this;
-	self.setVariableDefinitions([]);
-	if(self.config.feedback !== 'none') {
-		self.setVariableDefinitions(self.getVariables());
+
+	if(self.config.feedback === 'none') {
+		self.setVariableDefinitions([]);
+	} else {
+		var newVariables = self.getVariables();
+		self.setVariableDefinitions(newVariables);
 	}
 }
 

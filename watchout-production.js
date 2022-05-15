@@ -133,6 +133,8 @@ instance.prototype.updateConfig = function(config) {
 	self.initFeedbacks();
 	self.initPresets();
 	self.initVariables();
+	self.taskData = {'': {name: "Main timeline"}};
+	self.auxTimelinesChoices = [];
 	self.init_tcp();
 };
 
@@ -225,7 +227,7 @@ instance.prototype.poll = function() {
 	var self = this;
 	if(self.socket !== undefined) {
 		if(self.config.pollTaskListEnable === true) {
-			self.socket.send('getAuxTimelines tree\r\n');
+			self.refreshTaskList();
 		} else {
 			self.stopPolling();
 		}
@@ -237,6 +239,13 @@ instance.prototype.stopPolling = function() {
 	if(self.pollingTimer !== null) {
 		clearInterval(self.pollingTimer);
 		self.pollingTimer = null;
+	}
+}
+
+instance.prototype.refreshTaskList = function() {
+	var self = this;
+	if (self.socket !== undefined) {
+		self.socket.send('getAuxTimelines tree\r\n');
 	}
 }
 
@@ -271,10 +280,10 @@ instance.prototype.init_tcp = function() {
 			if (self.config.type === 'disp') {
 				self.socket.send('authenticate 1\r\n');
 			}
-			if (self.config.feedback !== 'none') {
+			if (self.config.feedback != 'none') {
 				// TODO: wait to be authenticated, if necessary
 				self.socket.send('getStatus 1\r\n'); // Subscribe main timeline updates
-				self.socket.send('getAuxTimelines tree\r\n'); // Get a list of timelines and folders
+				self.refreshTaskList();
 				if(self.config.pollTaskListEnable === true) {
 					self.stopPolling();
 					self.pollingTimer = setInterval(self.poll.bind(self), self.config.pollingInterval * 1000);
@@ -357,7 +366,7 @@ instance.prototype.init_tcp = function() {
 						if(self.refreshSubscriptions == true) {
 							self.resetSubscriptions();
 							self.refreshSubscriptions = false;
-							if(self.config.feedback === 'advanced') {
+							if(self.config.feedback == 'advanced') {
 								for (const timeline of self.auxTimelinesChoices) {
 									if(timeline.id != '') {
 										self.manageSubscription(timeline.id, true);
@@ -368,7 +377,7 @@ instance.prototype.init_tcp = function() {
 					} catch(e) {
 						if(e == "SyntaxError: Unexpected end of JSON input") {
 							// Data is corrupted, send the same command again
-							self.socket.send('getAuxTimelines tree\r\n'); // Get a list of timelines and folders
+							self.refreshTaskList();
 						}
 						debug("Error: " + e);
 					}
@@ -383,7 +392,7 @@ instance.prototype.init_tcp = function() {
 								self.taskData[match[1]].position = match[3];
 								self.taskData[match[1]].updated = match[4];
 
-								if(self.config.feedback === 'advanced') {
+								if(self.config.feedback == 'advanced') {
 									var status = 'stop';
 									if(match[2] == 1) {
 										status = 'pause';
@@ -525,7 +534,7 @@ instance.prototype.actions = function(system) {
 		id: 'timeline',
 		default: ''
 	}
-	if(self.config.feedback !== 'none') {
+	if(self.config.feedback != 'none') {
 		timelineOption = {
 			type: 'dropdown',
 			label: 'Timeline',
@@ -628,7 +637,7 @@ instance.prototype.actions = function(system) {
 	};
 
 	// Add feedback-related actions only if needed
-	if(self.config.feedback !== 'none') {
+	if(self.config.feedback != 'none') {
 		actions = Object.assign(actions, {
 			'getAuxTimelines': {
 				label: 'Get Aux Timelines Names'
@@ -794,7 +803,7 @@ instance.prototype.action = function(action) {
 
 instance.prototype.initFeedbacks = function() {
 	var self = this;
-	if(self.config.feedback !== 'none') {
+	if(self.config.feedback != 'none') {
 		self.setFeedbackDefinitions(self.getFeedbacks());
 	} else {
 		// TODO: delete feedbacks if self.config.feedback is toggled from true to false
@@ -804,18 +813,19 @@ instance.prototype.initFeedbacks = function() {
 
 instance.prototype.initPresets = function() {
 	var self = this;
-	if(self.config.feedback !== 'none') {
+	if(self.config.feedback != 'none') {
 		self.setPresetDefinitions(self.getPresets());
+		self.refreshTaskList();
 	} else {
 		// TODO: delete presets if self.config.feedback is toggled from true to false
-		//self.setPresetDefinitions([]);
+		self.setPresetDefinitions([]);	// This only unsets presets but does not remove them entirely from the instance
 	}
 }
 
 instance.prototype.initVariables = function() {
 	var self = this;
 
-	if(self.config.feedback === 'none') {
+	if(self.config.feedback == 'none') {
 		self.setVariableDefinitions([]);
 	} else {
 		var newVariables = self.getVariables();

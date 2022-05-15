@@ -760,10 +760,12 @@ instance.prototype.action = function(action) {
 			break;
 
 		case 'toggleRun':
-			if(self.taskData[action.options.timeline].status == 2) {
-				cmd = 'halt "' + action.options.timeline + '"\r\n';
-			} else {
-				cmd = 'run "' + action.options.timeline + '"\r\n';
+			if(self.config.feedback != 'none') {
+				if(self.taskData[action.options.timeline].status == 2) {
+					cmd = 'halt "' + action.options.timeline + '"\r\n';
+				} else {
+					cmd = 'run "' + action.options.timeline + '"\r\n';
+				}
 			}
 			break;
 	}
@@ -839,11 +841,11 @@ instance.prototype.buildPresets = function(timeline) {
 	});
 
 	presets.push({
-		category: 'Halt',
+		category: 'Pause',
 		label: timeline.label,
 		bank: {
 			style: 'text',
-			text: "Halt\\n" + timeline.label,
+			text: "Pause\\n" + timeline.label,
 			color: self.rgb(255,255,255),
 			bgcolor: self.rgb(0,0,0)
 		},

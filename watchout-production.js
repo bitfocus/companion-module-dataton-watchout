@@ -840,10 +840,10 @@ instance.prototype.buildPresets = function(timeline) {
 	let presets = [];
 	presets.push({
 		category: 'Run',
-		label: timeline.label,
+		label: "Run " + timeline.label,
 		bank: {
 			style: 'text',
-			text: "Run\\n" + timeline.label,
+			text: "Run\\n" + timeline.label + "\\n",
 			color: self.rgb(255,255,255),
 			bgcolor: self.rgb(0,0,0)
 		},
@@ -852,15 +852,36 @@ instance.prototype.buildPresets = function(timeline) {
 			options: {
 				timeline: timeline.id
 			}
-		}]
+		}],
+		feedbacks: [
+			{
+				type: 'task_playing',
+				options: {
+					icons: true,
+					timeline: timeline.id
+				}
+			},{
+				type: 'task_paused',
+				options: {
+					icons: true,
+					timeline: timeline.id
+				}
+			},{
+				type: 'task_stopped',
+				options: {
+					icons: true,
+					timeline: timeline.id
+				}
+			}
+		]
 	});
 
 	presets.push({
 		category: 'Pause',
-		label: timeline.label,
+		label: "Pause " + timeline.label,
 		bank: {
 			style: 'text',
-			text: "Pause\\n" + timeline.label,
+			text: "Pause\\n" + timeline.label + "\\n",
 			color: self.rgb(255,255,255),
 			bgcolor: self.rgb(0,0,0)
 		},
@@ -869,16 +890,37 @@ instance.prototype.buildPresets = function(timeline) {
 			options: {
 				timeline: timeline.id
 			}
-		}]
+		}],
+		feedbacks: [
+			{
+				type: 'task_playing',
+				options: {
+					icons: true,
+					timeline: timeline.id
+				}
+			},{
+				type: 'task_paused',
+				options: {
+					icons: true,
+					timeline: timeline.id
+				}
+			},{
+				type: 'task_stopped',
+				options: {
+					icons: true,
+					timeline: timeline.id
+				}
+			}
+		]
 	});
 
 	if(timeline.id != "") {	// You can't kill the main timeline
 		presets.push({
 			category: 'Kill',
-			label: timeline.label,
+			label: "Kill " + timeline.label,
 			bank: {
 				style: 'text',
-				text: "Kill\\n" + timeline.label,
+				text: "Kill\\n" + timeline.label + "\\n",
 				color: self.rgb(255,255,255),
 				bgcolor: self.rgb(0,0,0)
 			},
@@ -887,9 +929,68 @@ instance.prototype.buildPresets = function(timeline) {
 				options: {
 					timeline: timeline.id
 				}
-			}]
+			}],
+			feedbacks: [
+				{
+					type: 'task_playing',
+					options: {
+						icons: true,
+						timeline: timeline.id
+					}
+				},{
+					type: 'task_paused',
+					options: {
+						icons: true,
+						timeline: timeline.id
+					}
+				},{
+					type: 'task_stopped',
+					options: {
+						icons: true,
+						timeline: timeline.id
+					}
+				}
+			]
 		});
 	}
+
+	presets.push({
+		category: 'Toggle run',
+		label: "Toggle run " + timeline.label,
+		bank: {
+			style: 'text',
+			text: "Toggle\\n" + timeline.label + "\\n",
+			color: self.rgb(255,255,255),
+			bgcolor: self.rgb(0,0,0)
+		},
+		actions: [{
+			action: 'toggleRun',
+			options: {
+				timeline: timeline.id
+			}
+		}],
+		feedbacks: [
+			{
+				type: 'task_playing',
+				options: {
+					icons: true,
+					timeline: timeline.id
+				}
+			},{
+				type: 'task_paused',
+				options: {
+					icons: true,
+					timeline: timeline.id
+				}
+			},{
+				type: 'task_stopped',
+				options: {
+					icons: true,
+					timeline: timeline.id
+				}
+			}
+		]
+	});
 
 	presets.push({
 		category: 'Feedbacks with icons',
@@ -949,44 +1050,6 @@ instance.prototype.buildPresets = function(timeline) {
 				type: 'task_stopped',
 				options: {
 					icons: false,
-					timeline: timeline.id
-				}
-			}
-		]
-	});
-
-	presets.push({
-		category: 'Toggle run',
-		label: timeline.label,
-		bank: {
-			style: 'text',
-			text: timeline.label + "\\n",
-			color: self.rgb(255,255,255),
-			bgcolor: self.rgb(0,0,0)
-		},
-		actions: [{
-			action: 'toggleRun',
-			options: {
-				timeline: timeline.id
-			}
-		}],
-		feedbacks: [
-			{
-				type: 'task_playing',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_paused',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_stopped',
-				options: {
-					icons: true,
 					timeline: timeline.id
 				}
 			}

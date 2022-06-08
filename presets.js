@@ -4,7 +4,7 @@ module.exports = {
     let presets = [];
 
     presets.push({
-      category: 'Commands',
+      category: 'General Commands',
       label: 'Update timeline list',
       bank: {
         style: 'text',

@@ -499,8 +499,8 @@ instance.prototype.config_fields = function () {
       type: 'text',
       id: 'pollTaskListMessage',
       width: 11,
-      label: 'Poll for task list updates',
-      value: 'Automatically update the task list used in dropdown menus, presets, variables and feedbacks.<br><b>If polling is disabled, use the action "Get Aux Timelines Names" to refresh manually.</b>'
+      label: 'Auto update timeline list and presets',
+      value: 'Automatically update the timeline list used in dropdown menus, presets, variables and feedbacks.<br><b>If polling is disabled, use the action "Update timeline list" to refresh manually.</b>'
     },{
 		  type: 'textinput',
 			id: 'pollingInterval',
@@ -640,7 +640,7 @@ instance.prototype.actions = function(system) {
 	if(self.config.feedback != 'none') {
 		actions = Object.assign(actions, {
 			'getAuxTimelines': {
-				label: 'Get Aux Timelines Names'
+				label: 'Update timeline list'
 			},
 			'toggleRun': {
 				label: 'Toggle run',

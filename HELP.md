@@ -13,7 +13,7 @@
 * Set Input
 * Load Show
 * Layer Conditions
-* Get Aux Timelines Names (available if using feedbacks)
+* Update timeline list (available if using feedbacks)
 * Toggle Run (available if using feedbacks)
 
 The Parameter when loading a Show with "Load Show" is different when controlling a production computer or a display cluster.
@@ -32,16 +32,19 @@ In "Advanced (feedbacks and variables)" mode, Watchout will send status updates 
 
 There is no polling going on for feedbacks and variables, the production PC sends status updates automatically without further requests.
 
-**Polling**
+The production PC will send updates whenever possible, usually as soon as a task changes its status or every 4 seconds.
 
-Polling will automatically keep updated the task list used in this instance for dropdown menus, presets, feedback and variables.
-Network traffic and load on production PC will increase.
+**Auto update timeline list - Polling warning**
 
-If polling is disable you need to use **"Get Aux Timelines Names"** action manually to refresh the task list.
+Setting an interval in "Auto update timeline list" field will automatically keep updated the task list used in this instance for dropdown menus, presets, feedback and variables.
 
-**Feedback and task deletion warning**
+Network traffic and load on production PC will increase because Companion actively asks for this data.
 
-If you delete a task when a feedback/variable is active, its status will appear as "stop" and Watchout will continue sending updates on that
+If this interval is set to zero (disabled) you need to use **"Update timeline list"** action manually to refresh the task list.
+
+**Warning on feedback and task deletion**
+
+If you delete a task when a feedback/variable is active, its status will appear as "stop" because Watchout will continue sending updates on that
 task status, even if it has been deleted. If you later create a new task with the same name as the old one, feedbacks from the new and the old
 task will mix up and status will keep changing from "stop" (the old, deleted task status) and the correct one from the new task. To fix this
 error just disable and enable the instance. Unfortunately this bug comes from Watchout and is not controllable by Companion.

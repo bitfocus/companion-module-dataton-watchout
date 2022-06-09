@@ -855,19 +855,7 @@ instance.prototype.buildPresets = function(timeline) {
 		}],
 		feedbacks: [
 			{
-				type: 'task_playing',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_paused',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_stopped',
+				type: 'task_status',
 				options: {
 					icons: true,
 					timeline: timeline.id
@@ -893,19 +881,7 @@ instance.prototype.buildPresets = function(timeline) {
 		}],
 		feedbacks: [
 			{
-				type: 'task_playing',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_paused',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_stopped',
+				type: 'task_status',
 				options: {
 					icons: true,
 					timeline: timeline.id
@@ -932,19 +908,7 @@ instance.prototype.buildPresets = function(timeline) {
 			}],
 			feedbacks: [
 				{
-					type: 'task_playing',
-					options: {
-						icons: true,
-						timeline: timeline.id
-					}
-				},{
-					type: 'task_paused',
-					options: {
-						icons: true,
-						timeline: timeline.id
-					}
-				},{
-					type: 'task_stopped',
+					type: 'task_status',
 					options: {
 						icons: true,
 						timeline: timeline.id
@@ -971,85 +935,9 @@ instance.prototype.buildPresets = function(timeline) {
 		}],
 		feedbacks: [
 			{
-				type: 'task_playing',
+				type: 'task_status',
 				options: {
 					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_paused',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_stopped',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			}
-		]
-	});
-
-	presets.push({
-		category: 'Feedbacks with icons',
-		label: timeline.label + "\\n",
-		bank: {
-			style: 'text',
-			text: timeline.label + "\\n",
-			color: self.rgb(255,255,255),
-			bgcolor: self.rgb(0,0,0)
-		},
-		feedbacks: [
-			{
-				type: 'task_playing',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_paused',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_stopped',
-				options: {
-					icons: true,
-					timeline: timeline.id
-				}
-			}
-		]
-	});
-
-	presets.push({
-		category: 'Feedbacks with colors',
-		label: timeline.label,
-		bank: {
-			style: 'text',
-			text: timeline.label,
-			color: self.rgb(255,255,255),
-			bgcolor: self.rgb(0,0,0)
-		},
-		feedbacks: [
-			{
-				type: 'task_playing',
-				options: {
-					icons: false,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_paused',
-				options: {
-					icons: false,
-					timeline: timeline.id
-				}
-			},{
-				type: 'task_stopped',
-				options: {
-					icons: false,
 					timeline: timeline.id
 				}
 			}

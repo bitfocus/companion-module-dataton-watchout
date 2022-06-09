@@ -18,7 +18,7 @@ module.exports = {
 					type: 'checkbox',
 					label: 'Use icon instead of colors',
 					id: 'icons',
-					default: false
+					default: true
 				},
 				{	// Play FG
 					type    : 'colorpicker',

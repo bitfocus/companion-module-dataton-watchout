@@ -280,7 +280,7 @@ instance.prototype.init_tcp = function() {
 			if (self.config.type === 'disp') {
 				self.socket.send('authenticate 1\r\n');
 			}
-			if (self.config.feedback != 'none') {
+			if (self.config.feedback == 'simple' || self.config.feedback == 'advanced') {
 				// TODO: wait to be authenticated, if necessary
 				self.socket.send('getStatus 1\r\n'); // Subscribe main timeline updates
 				self.refreshTaskList();
@@ -529,7 +529,7 @@ instance.prototype.actions = function(system) {
 		id: 'timeline',
 		default: ''
 	}
-	if(self.config.feedback != 'none') {
+	if(self.config.feedback == 'simple' || self.config.feedback == 'advanced') {
 		timelineOption = {
 			type: 'dropdown',
 			label: 'Timeline',
@@ -632,7 +632,7 @@ instance.prototype.actions = function(system) {
 	};
 
 	// Add feedback-related actions only if needed
-	if(self.config.feedback != 'none') {
+	if(self.config.feedback == 'simple' || self.config.feedback == 'advanced') {
 		actions = Object.assign(actions, {
 			'getAuxTimelines': {
 				label: 'Update timeline list'
@@ -769,7 +769,7 @@ instance.prototype.action = function(action) {
 			break;
 
 		case 'toggleRun':
-			if(self.config.feedback != 'none') {
+			if(self.config.feedback == 'simple' || self.config.feedback == 'advanced') {
 				if(self.taskData[action.options.timeline].status == 2) {
 					cmd = 'halt "' + action.options.timeline + '"\r\n';
 				} else {
@@ -798,7 +798,7 @@ instance.prototype.action = function(action) {
 
 instance.prototype.initFeedbacks = function() {
 	var self = this;
-	if(self.config.feedback != 'none') {
+	if(self.config.feedback == 'simple' || self.config.feedback == 'advanced') {
 		self.setFeedbackDefinitions(self.getFeedbacks());
 	} else {
 		// TODO: delete feedbacks if self.config.feedback is toggled from true to false
@@ -808,7 +808,7 @@ instance.prototype.initFeedbacks = function() {
 
 instance.prototype.initPresets = function() {
 	var self = this;
-	if(self.config.feedback != 'none') {
+	if(self.config.feedback == 'simple' || self.config.feedback == 'advanced') {
 		self.setPresetDefinitions(self.getPresets());
 		self.refreshTaskList();
 	} else {

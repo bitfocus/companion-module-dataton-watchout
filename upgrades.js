@@ -1,5 +1,5 @@
 module.exports = function () {
-	return [layerCondFix]
+	return [layerCondFix, feedbackConfigDefaults]
 }
 
 // (version 1.2.3 => 1.2.4) Fix layerCond implementation bug
@@ -26,4 +26,14 @@ function layerCondFix(context, config, actions, feedbacks) {
     }
   }
   return changes;
+}
+
+function feedbackConfigDefaults(context, config, actions, feedbacks) {
+	let changes = false;
+	if(config.feedback == undefined) {
+		config.feedback = 'none';
+		config.pollingInterval = 30;
+		changes = true;
+	}
+	return changes;
 }

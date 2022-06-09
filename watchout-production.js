@@ -226,7 +226,7 @@ instance.prototype.manageSubscription = function(task, subscribe) {
 instance.prototype.poll = function() {
 	var self = this;
 	if(self.socket !== undefined) {
-		if(self.config.pollTaskListEnable === true) {
+		if(self.config.pollingInterval > 0) {
 			self.refreshTaskList();
 		} else {
 			self.stopPolling();
@@ -284,7 +284,7 @@ instance.prototype.init_tcp = function() {
 				// TODO: wait to be authenticated, if necessary
 				self.socket.send('getStatus 1\r\n'); // Subscribe main timeline updates
 				self.refreshTaskList();
-				if(self.config.pollTaskListEnable === true) {
+				if(self.config.pollingInterval > 0) {
 					self.stopPolling();
 					self.pollingTimer = setInterval(self.poll.bind(self), self.config.pollingInterval * 1000);
 				}
@@ -490,24 +490,19 @@ instance.prototype.config_fields = function () {
 				{ id: 'advanced', label: 'Advanced (feedbacks and variables)' }
 			]
 		},{
-      type: 'checkbox',
-      id: 'pollTaskListEnable',
-      width: 1,
-      label: 'Polling',
-      default: false,
-    },{
-      type: 'text',
-      id: 'pollTaskListMessage',
-      width: 11,
-      label: 'Auto update timeline list and presets',
-      value: 'Automatically update the timeline list used in dropdown menus, presets, variables and feedbacks.<br><b>If polling is disabled, use the action "Update timeline list" to refresh manually.</b>'
-    },{
-		  type: 'textinput',
+		  type: 'number',
 			id: 'pollingInterval',
-		  label: 'Polling interval (seconds):',
-		  regex: self.REGEX_NUMBER,
-			width: 6,
-			default: 30
+			label: 'Auto update timeline list and presets interval in seconds (0 = disabled)',
+			width: 12,
+			default: 30,
+			min: 0,
+			required: true
+		},{
+      type: 'text',
+      id: 'pollMessage',
+      width: 12,
+      label: 'If auto update is disabled, use the action "Update timeline list" to refresh manually.',
+      value: 'This interval is just for updating the timeline list used in dropdown menus, presets, variables and feedbacks, not for feedbacks.'
 		}
 	]
 };

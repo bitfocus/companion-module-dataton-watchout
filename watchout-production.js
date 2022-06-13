@@ -534,6 +534,7 @@ instance.prototype.actions = function(system) {
 			type: 'dropdown',
 			label: 'Timeline',
 			id: 'timeline',
+			allowCustom: true,
 			default: '',
 			choices: self.auxTimelinesChoices
 		}

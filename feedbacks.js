@@ -11,6 +11,7 @@ module.exports = {
 					type    : 'dropdown',
 					label   : 'Timeline',
 					id      : 'timeline',
+					allowCustom: true,
 					choices : self.auxTimelinesChoices,
 					default : ''
 				},
@@ -115,6 +116,7 @@ module.exports = {
 					type    : 'dropdown',
 					label   : 'Timeline',
 					id      : 'timeline',
+					allowCustom: true,
 					choices : self.auxTimelinesChoices,
 					default : ''
 				},
@@ -173,6 +175,7 @@ module.exports = {
 					type    : 'dropdown',
 					label   : 'Timeline',
 					id      : 'timeline',
+					allowCustom: true,
 					choices : self.auxTimelinesChoices,
 					default : ''
 				},
@@ -231,6 +234,7 @@ module.exports = {
 					type    : 'dropdown',
 					label   : 'Timeline',
 					id      : 'timeline',
+					allowCustom: true,
 					choices : self.auxTimelinesChoices,
 					default : ''
 				},

@@ -1,32 +1,20 @@
 {
 	"name": "dataton-watchout",
-	"legacy": [
-		"watchout_production",
-		"watchout-production"
-	],
-	"version": "1.3.1",
-	"api_version": "1.0.0",
-	"keywords": [
-		"Media Server",
-		"Software",
-		"Video"
-	],
-	"manufacturer": "Dataton",
-	"product": "Watchout",
-	"shortname": "watchout",
-	"description": "Dataton Watchout Production and Display Cluster plugin for Companion",
+	"version": "2.0.0",
 	"main": "watchout-production.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"author": "Dorian Meid <meid@backstage.org>",
 	"license": "MIT",
-	"homepage": "https://github.com/bitfocus/companion-module-dataton-watchout#readme",
-	"bugs": {
-		"url": "https://github.com/bitfocus/companion-module-dataton-watchout/issues"
-	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/bitfocus/companion-module-dataton-watchout.git"
+	},
+	"dependencies": {
+		"@companion-module/base": "~1.4.1"
+	},
+	"devDependencies": {
+		"@companion-module/tools": "^1.3.2"
 	}
 }

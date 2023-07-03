@@ -1,28 +1,27 @@
-module.exports = {
-	getVariables() {
-    let self = this;
-		let variables = null;
-		if(self.config.feedback == 'simple' || self.config.feedback == 'advanced') {
-			variables = [
-	      { name: 'showName',         label: 'Show Name' },
-	      { name: 'busy',             label: 'Busy' },
-	      { name: 'clusterHealth',    label: 'Cluster Health' },
-	      { name: 'fullscreen',       label: 'fullscreen' },
-	      { name: 'ready',            label: 'Ready' },
-	      { name: 'programmerOnline', label: 'Programmer in online' },
-	      { name: 'playheadMain',     label: 'Main timeline playhead position' },
-	      { name: 'playingMain',      label: 'Main timeline is playing' },
-	      { name: 'standby',          label: 'Standby' }
-	    ];
-		}
+const VariableDefinitions = (self) => {
+	let variables = null
+	if (self.config.feedback == 'simple' || self.config.feedback == 'advanced') {
+		variables = [
+			{ variableId: 'showName', name: 'Show Name' },
+			{ variableId: 'busy', name: 'Busy' },
+			{ variableId: 'clusterHealth', name: 'Cluster Health' },
+			{ variableId: 'fullscreen', name: 'fullscreen' },
+			{ variableId: 'ready', name: 'Ready' },
+			{ variableId: 'programmerOnline', name: 'Programmer in online' },
+			{ variableId: 'playheadMain', name: 'Main timeline playhead position' },
+			{ variableId: 'playingMain', name: 'Main timeline is playing' },
+			{ variableId: 'standby', name: 'Standby' },
+		]
+	}
 
-		if(self.config.feedback === 'advanced') {
-			for (const timeline of self.auxTimelinesChoices) {
-				if(timeline.id != '') {
-					variables.push({name: 'status ' + timeline.id, label : timeline.id + " status"});
-				}
+	if (self.config.feedback === 'advanced') {
+		for (const timeline of self.auxTimelinesChoices) {
+			if (timeline.id != '') {
+				variables.push({ variableId: 'status ' + timeline.id, name: timeline.id + ' status' })
 			}
 		}
-		return variables;
-  }
+	}
+	return variables
 }
+
+module.exports = VariableDefinitions

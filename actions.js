@@ -9,7 +9,7 @@ const sendCommand = (cmd, self) => {
 
 		self.log('debug', 'sending tcp ' + cmd + ' to ' + self.config.host)
 
-		if (self.socket !== undefined && self.socket.connected) {
+		if (self.socket !== undefined && self.socket.isConnected) {
 			self.socket.send(cmd)
 		} else {
 			self.log('debug', `Can't send send command, socket not connected :(`)
@@ -106,14 +106,16 @@ const ActionDefinitions = (self) => {
 					type: 'textinput',
 					label: 'Cue name',
 					id: 'cuename',
+					useVariables: true,
 					default: '',
 				},
 				timelineOption,
 			],
-			callback: (action) => {
+			callback: async (action) => {
 				let cmd = ''
-				if (action.options.cuename != '') {
-					cmd = 'gotoControlCue "' + action.options.cuename + '" false'
+				const cuename = await self.parseVariablesInString(action.options.cuename)
+				if (cuename != '') {
+					cmd = 'gotoControlCue "' + cuename + '" false'
 					if (action.options.timeline != '') cmd += ` "${action.options.timeline}"`
 					cmd += '\r\n'
 					sendCommand(cmd, self)
@@ -186,7 +188,7 @@ const ActionDefinitions = (self) => {
 					label: 'Value',
 					id: 'inputvalue',
 					default: '1.0',
-					regex: Regex.SIGNED_FLOAT,
+					useVariables: true,
 				},
 				{
 					type: 'textinput',
@@ -196,15 +198,25 @@ const ActionDefinitions = (self) => {
 					regex: Regex.NUMBER,
 				},
 			],
-			callback: (action) => {
+			callback: async (action) => {
 				let cmd = ''
-				if (action.options.inputname != '' && action.options.inputvalue != '') {
+				let value = await self
+					.parseVariablesInString(action.options.inputvalue)
+					.catch((e) => self.log('error', 'parsing variable for setInput failed ' + e))
+
+				if (action.options.inputname != '' && value != '') {
 					cmd = 'setInput "' + action.options.inputname + '" '
-					if (action.options.inputvalue.startsWith('+')) {
+					if (value.startsWith('+')) {
 						cmd += '+'
 					}
-					cmd += parseFloat(action.options.inputvalue)
-					if (action.options.inputfade != '') cmd += ' ' + parseInt(action.options.inputfade)
+					const float = parseFloat(value)
+					if (isNaN(float)) {
+						self.log('error', 'Entered input value is not a number: ' + value + ' => ' + float)
+						return
+					}
+					cmd += float.toString()
+					const fade = parseInt(action.options.inputfade)
+					if (action.options.inputfade != '') cmd += isNaN(fade) ? '' : ' ' + fade
 					cmd += '\r\n'
 					sendCommand(cmd, self)
 				} else {
@@ -223,13 +235,15 @@ const ActionDefinitions = (self) => {
 					label: 'Showfile or Showname',
 					id: 'show',
 					default: '',
+					useVariables: true,
 					regex: '/^[a-zA-Z0-9\\/:.-_ ]+$/',
 				},
 			],
-			callback: (action) => {
+			callback: async (action) => {
 				let cmd = ''
-				if (action.options.show != '') {
-					cmd = 'load "' + action.options.show + '"\r\n'
+				const show = await self.parseVariablesInString(action.options.show)
+				if (show != '') {
+					cmd = 'load "' + show + '"\r\n'
 					sendCommand(cmd, self)
 				}
 			},

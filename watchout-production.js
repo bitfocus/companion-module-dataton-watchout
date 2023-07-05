@@ -8,10 +8,12 @@ const { PresetDefinitions, buildPresets } = require('./presets')
 class WatchoutProductionInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
+		this.instanceOptions.disableVariableValidation = true
 	}
 
 	async init(config) {
 		this.config = config
+		this.server
 
 		this.refreshSubscriptions = false
 		this.maxConditions = 30
@@ -19,6 +21,9 @@ class WatchoutProductionInstance extends InstanceBase {
 		this.choicesConditions = []
 		this.auxTimelinesChoices = []
 		this.pollingTimer = null
+		this.messageBuffer = ''
+
+		this.regex = Regex
 
 		this.updateStatus(InstanceStatus.Ok)
 
@@ -199,169 +204,194 @@ class WatchoutProductionInstance extends InstanceBase {
 				// TODO: check authentication response
 				let reply = data.toString()
 
-				// Multiple messages can come combined in just one burst, split them
-				let messages = reply.matchAll(this.regex.watchoutReply)
+				if (this.messageBuffer.length === 0) {
+					// we are waiting for a message keyword
+					let replyPos = reply.search(/(?<=\r\n|^)(Ready|Busy|Reply|Error|Status) /)
+					if (replyPos != -1) {
+						reply = reply.slice(replyPos) // Everything in front of first keyword is likely a fragment of another message, remove it.
+					} else {
+						reply = '' // the whole message is a fragment or not valid, drop it
+					}
+				}
 
-				for (const message of messages) {
+				this.messageBuffer += reply
+
+				if (this.messageBuffer.length > 16000) {
+					this.messageBuffer = ''
+					this.log('error', 'Incoming messagebuffer overflow, flushing')
+				}
+
+				while (this.messageBuffer.length > 0) {
+					// try to get messages from the buffer
+					let message = this.messageBuffer.match(
+						/(?<=\r\n|^)(Ready|Busy|Reply|Error|Status) (.*?)(?=(\r\nReady|\r\nBusy|\r\nReply|\r\nError|\r\nStatus)|$)/s
+					)
+					if (!Array.isArray(message) || message.length < 3) return
 					let type = message[1]
 					let content = message[2]
 					if (type === 'Reply') {
-						// TODO: add some checks on the reply we are getting
+						let contentObj
 						try {
-							// Try to parse a reply to: GetAuxTimelines tree. Sometimes the JSON is truncated and invalid
-							// Reply content is in JSON format
-							let content_obj = JSON.parse(content)
-							// Convert the object given from Watchout into a more useful one
-							// The first object of taskData/newTaskData is always the main timeline, we need to copy
-							// its values manually because the main timeline isn't included in "getAuxTimelines tree" reply
-							let newTaskData = Object.assign({ ['']: this.taskData[''] }, this.buildTaskObj(content_obj))
-
-							// Create a list of task choices to be used in dropdown menus
-							// The main timeline is always present
-							let newChoices = []
-
-							// New tasks (if a task is moved inside a folder it is considered a new/different one)
-							// We copy old status data into newTaskData to make sure that task order is the same as in Watchout task list
-							for (const [task, properties] of Object.entries(newTaskData)) {
-								if (this.taskData[task] === undefined || this.taskData[task].subscribeCmd != properties.subscribeCmd) {
-									// New task
-									// Initialize properties of new task
-									properties.subscriptions = 0
-									properties.status = 'unknown'
-									properties.position = 'unknown'
-									properties.updated = 'unknown'
-									// Set flags to refresh presets, feedbacks, variables and dropdown menus
-									this.refreshSubscriptions = true
-								} else {
-									// Task is already known, copy status data
-									properties.subscriptions = this.taskData[task].subscriptions
-									properties.status = this.taskData[task].status
-									properties.position = this.taskData[task].position
-									properties.updated = this.taskData[task].updated
-								}
-								newChoices.push({ id: task, label: properties.name })
-							}
-							newChoices.reverse()
-
-							if (JSON.stringify(newChoices) != JSON.stringify(this.auxTimelinesChoices)) {
-								// Something changed in the task list (maybe just the order or new/deleted tasks)
-								this.auxTimelinesChoices = newChoices
-							}
-							if (JSON.stringify(newTaskData) != JSON.stringify(this.taskData)) {
-								// The received data is different from the stored one
-								this.taskData = newTaskData
-
-								this.initActions() // Update actions (refresh all dropdown menus)
-								this.initFeedbacks() // Update feedbacks (refresh all dropdown menus)
-								// Rebuild the presets from scratch
-								let newPresets = PresetDefinitions(this)
-								if (this.config.feedback == 'advanced') {
-									this.initVariables()
-									for (const [task, properties] of Object.entries(this.taskData)) {
-										if (task != '' && properties.subscriptions == 0) {
-											this.manageSubscription(task, true)
-										}
-									}
-								}
-								for (const timeline of this.auxTimelinesChoices) {
-									newPresets.push(...buildPresets(timeline))
-								}
-								this.setPresetDefinitions(newPresets)
-							}
-
-							if (this.refreshSubscriptions == true) {
-								this.resetSubscriptions()
-								this.refreshSubscriptions = false
-								if (this.config.feedback === 'advanced') {
-									for (const timeline of this.auxTimelinesChoices) {
-										if (timeline.id != '') {
-											this.manageSubscription(timeline.id, true)
-										}
-									}
-								}
-							}
+							contentObj = JSON.parse(content)
+							// it is valid, so chop it off the messagebuffer
+							this.messageBuffer = this.messageBuffer.slice(type.length + content.length + 1)
+							this.handleMessage(type, contentObj)
 						} catch (e) {
-							if (e == 'SyntaxError: Unexpected end of JSON input') {
-								// Data is corrupted, send the same command again
-								this.refreshTaskList()
-							}
-							this.log('debug', 'Error: ' + e)
-						}
-					} else if (type === 'Status') {
-						// Maybe it's a task status update message
-						let taskStatusMatches = [...content.matchAll(this.regex.taskStatus)] // We should get only one match but let's keep it safe
-						if (taskStatusMatches.length > 0) {
-							// Should be a single line/match
-							for (const match of taskStatusMatches) {
-								if (this.taskData.hasOwnProperty(match[1])) {
-									this.taskData[match[1]].status = match[2]
-									this.taskData[match[1]].position = match[3]
-									this.taskData[match[1]].updated = match[4]
-
-									if (this.config.feedback == 'advanced') {
-										let status = 'stop'
-										if (match[2] == 1) {
-											status = 'pause'
-										} else if (match[2] == 2) {
-											status = 'play'
-										}
-										this.setVariableValues({ ['status ' + match[1]]: status })
-									}
-								}
-							}
-							this.checkFeedbacks()
-							//continue;
-						}
-						// Maybe it's a general status update message
-						let generalStatusMatches = [...content.matchAll(this.regex.generalStatus)] // We should get only one match but let's keep it safe
-						if (generalStatusMatches.length > 0) {
-							// Should be a single line/match
-							for (const match of generalStatusMatches) {
-								this.taskData[''].status = match[9] == 'true' ? 2 : 1
-								this.taskData[''].position = match[8]
-								this.taskData[''].updated = match[13]
-								// TODO: store other status data in the instance?
-
-								// Update variables
-								let clusterHealth = ''
-								switch (match[4]) {
-									case '0':
-										clusterHealth = 'Ok'
-										break
-									case '1':
-										clusterHealth = 'Suboptimal'
-										break
-									case '2':
-										clusterHealth = 'Problems'
-										break
-									case '3':
-										clusterHealth = 'Dead'
-										break
-									default:
-										clusterHealth = 'Unknown value'
-								}
-								this.setVariableValues({
-									showName: match[2],
-									busy: match[3],
-									clusterHealth: clusterHealth,
-									fullscreen: match[5],
-									ready: match[6],
-									programmerOnline: match[7],
-									playheadMain: match[8],
-									playingMain: match[9],
-									standby: match[11],
-								})
-							}
-							this.checkFeedbacks()
-							//continue;
+							// not a valid json, just stop parsing and wait for more data
+							return
 						}
 					} else {
-						// TODO: handle Ready|Busy|Error messages
-						this.log('debug', type + ': ' + content)
-						this.log('warning', 'Unhandled message. ' + type + ': ' + content)
+						this.messageBuffer = this.messageBuffer.slice(type.length + content.length + 1)
+						this.handleMessage(type, content)
 					}
 				}
 			})
+		}
+	}
+
+	// handle incoming message
+	handleMessage(type, data) {
+		if (type === 'Reply') {
+			// Convert the object given from Watchout into a more useful one
+			// The first object of taskData/newTaskData is always the main timeline, we need to copy
+			// its values manually because the main timeline isn't included in "getAuxTimelines tree" reply
+			let newTaskData = Object.assign({ ['']: this.taskData[''] }, this.buildTaskObj(data))
+
+			// Create a list of task choices to be used in dropdown menus
+			// The main timeline is always present
+			let newChoices = []
+
+			// New tasks (if a task is moved inside a folder it is considered a new/different one)
+			// We copy old status data into newTaskData to make sure that task order is the same as in Watchout task list
+			for (const [task, properties] of Object.entries(newTaskData)) {
+				if (this.taskData[task] === undefined || this.taskData[task].subscribeCmd != properties.subscribeCmd) {
+					// New task
+					// Initialize properties of new task
+					properties.subscriptions = 0
+					properties.status = 'unknown'
+					properties.position = 'unknown'
+					properties.updated = 'unknown'
+					// Set flags to refresh presets, feedbacks, variables and dropdown menus
+					this.refreshSubscriptions = true
+				} else {
+					// Task is already known, copy status data
+					properties.subscriptions = this.taskData[task].subscriptions
+					properties.status = this.taskData[task].status
+					properties.position = this.taskData[task].position
+					properties.updated = this.taskData[task].updated
+				}
+				newChoices.push({ id: task, label: properties.name })
+			}
+			newChoices.reverse()
+
+			if (JSON.stringify(newChoices) != JSON.stringify(this.auxTimelinesChoices)) {
+				// Something changed in the task list (maybe just the order or new/deleted tasks)
+				this.auxTimelinesChoices = newChoices
+			}
+			if (JSON.stringify(newTaskData) != JSON.stringify(this.taskData)) {
+				// The received data is different from the stored one
+				this.taskData = newTaskData
+
+				this.initActions() // Update actions (refresh all dropdown menus)
+				this.initFeedbacks() // Update feedbacks (refresh all dropdown menus)
+				// Rebuild the presets from scratch
+				let newPresets = PresetDefinitions(this)
+				if (this.config.feedback == 'advanced') {
+					this.initVariables()
+					for (const [task, properties] of Object.entries(this.taskData)) {
+						if (task != '' && properties.subscriptions == 0) {
+							this.manageSubscription(task, true)
+						}
+					}
+				}
+				for (const timeline of this.auxTimelinesChoices) {
+					newPresets.push(...buildPresets(timeline))
+				}
+				this.setPresetDefinitions(newPresets)
+			}
+
+			if (this.refreshSubscriptions == true) {
+				this.resetSubscriptions()
+				this.refreshSubscriptions = false
+				if (this.config.feedback === 'advanced') {
+					for (const timeline of this.auxTimelinesChoices) {
+						if (timeline.id != '') {
+							this.manageSubscription(timeline.id, true)
+						}
+					}
+				}
+			}
+		} else if (type === 'Status') {
+			// Maybe it's a task status update message
+			//let taskStatusMatches = [...data.matchAll(this.regex.taskStatus)] // We should get only one match but let's keep it safe
+			let match = data.match(/"TaskList:mItemList:mItems:TimelineTask \\"([^\"]*)\\"" (0|1|2) (\d+) (\d+)/)
+			if (Array.isArray(match)) {
+				if (this.taskData.hasOwnProperty(match[1])) {
+					this.taskData[match[1]].status = match[2]
+					this.taskData[match[1]].position = match[3]
+					this.taskData[match[1]].updated = match[4]
+
+					if (this.config.feedback == 'advanced') {
+						let status = 'stop'
+						if (match[2] == 1) {
+							status = 'pause'
+						} else if (match[2] == 2) {
+							status = 'play'
+						}
+						let variablename = `status_${match[1].replaceAll(/[^a-zA-Z0-9_-]/g, '_')}`
+						this.setVariableValues({ [variablename]: status })
+					}
+				}
+				this.checkFeedbacks()
+				//continue;
+			}
+			// Maybe it's a general status update message
+			let generalStatusMatches = [...data.matchAll(this.regex.generalStatus)] // We should get only one match but let's keep it safe
+			if (generalStatusMatches.length > 0) {
+				// Should be a single line/match
+				for (const match of generalStatusMatches) {
+					this.taskData[''].status = match[9] == 'true' ? 2 : 1
+					this.taskData[''].position = match[8]
+					this.taskData[''].updated = match[13]
+					// TODO: store other status data in the instance?
+
+					// Update variables
+					let clusterHealth = ''
+					switch (match[4]) {
+						case '0':
+							clusterHealth = 'Ok'
+							break
+						case '1':
+							clusterHealth = 'Suboptimal'
+							break
+						case '2':
+							clusterHealth = 'Problems'
+							break
+						case '3':
+							clusterHealth = 'Dead'
+							break
+						default:
+							clusterHealth = 'Unknown value'
+					}
+					this.setVariableValues({
+						showName: match[2],
+						busy: match[3],
+						clusterHealth: clusterHealth,
+						fullscreen: match[5],
+						ready: match[6],
+						programmerOnline: match[7],
+						playheadMain: match[8],
+						playingMain: match[9],
+						standby: match[11],
+					})
+				}
+				this.checkFeedbacks()
+				//continue;
+			}
+		} else {
+			// TODO: handle Ready|Busy|Error messages
+			this.log('debug', type + ': ' + data)
+			this.log('warning', 'Unhandled message. ' + type + ': ' + data)
 		}
 	}
 

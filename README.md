@@ -10,6 +10,8 @@ See HELP.md and LICENSE
 ## v2.0.0 (2023-07-04)
 
 * major: rewrite to ES6 syntax an rewrite for Companion v3 compatibility
+* feature: can use variables for Set Input, Jump to Cue and Open Show actions
+* change: due to new restrictions in variable IDs, the format of automatically generated status variables have changed, invalid characters will be replaced by underscores.
 
 ## v1.3.0 (2022-06-12)
 

@@ -17,7 +17,8 @@ const VariableDefinitions = (self) => {
 	if (self.config.feedback === 'advanced') {
 		for (const timeline of self.auxTimelinesChoices) {
 			if (timeline.id != '') {
-				variables.push({ variableId: 'status ' + timeline.id, name: timeline.id + ' status' })
+				const variableId = `status_${timeline.id.replaceAll(/[^a-zA-Z0-9_-]/g, '_')}`
+				variables.push({ variableId, name: timeline.id + ' status' })
 			}
 		}
 	}

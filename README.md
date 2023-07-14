@@ -7,6 +7,10 @@ See HELP.md and LICENSE
 
 # Changelog
 
+## v2.0.1 (2023-07-14)
+
+* bugfix: fix upgrade-scripts
+
 ## v2.0.0 (2023-07-04)
 
 * major: rewrite to ES6 syntax an rewrite for Companion v3 compatibility

@@ -1,12 +1,12 @@
 const { combineRgb } = require('@companion-module/base')
 
 // Some regex to parse messages from Watchout
-const regex = {
+const messagesRegex = {
 	/* Response messages splitter
 		this is used to split the received string from Watchout into multiple messages (they can come in a single burst)
 	*/
 	watchoutReply:
-		/(?<=\r\n|^)(Ready|Busy|Reply|Error|Status) (.*?)(?=(\r\nReady|\r\nBusy|\r\nReply|\r\nError|\r\nStatus)|$)/gs,
+		/(?<=\r\n|^)(Ready|Busy|Reply|Error|Status) (.*?)(?=(\r\nReady|\r\nBusy|\r\nReply|\r\nError|\r\nStatus)|$)/s,
 
 	/* Tasks status, capture groups:
 		[1] task name (string)
@@ -14,7 +14,8 @@ const regex = {
 		[3] playhead position (int)
 		[4] message time (int)
 	*/
-	taskStatus: /"TaskList:mItemList:mItems:TimelineTask \\"([^\"]*)\\"" (0|1|2) (\d+) (\d+)/g,
+	taskStatus:
+		/"TaskList:mItemList:mItems:TimelineTask \\"([^\"]*)\\"" (0|1|2) (\d+) (\d+)/,
 
 	/* General status, capture groups:
 		[1] (string)
@@ -65,4 +66,4 @@ const feedbacksSettings = {
 	},
 }
 
-module.exports = { regex, feedbacksSettings }
+module.exports = { messagesRegex, feedbacksSettings }

@@ -1,3 +1,5 @@
+const { feedbacksSettings } = require('./constants')
+
 // Utility function to dynamically build presets based on a timeline object passed to it
 // We expect to receive a timeline object containing timeline.id and timeline.label
 const buildPresets = (timeline) => {
@@ -8,7 +10,7 @@ const buildPresets = (timeline) => {
 		type: 'button',
 		label: 'Run ' + timeline.label,
 		style: {
-			text: 'Run\\n' + timeline.label + '\\n',
+			text: timeline.label,
 			size: '14',
 			color: 0xffffff,
 			bgcolor: 0x000000,
@@ -30,8 +32,14 @@ const buildPresets = (timeline) => {
 			{
 				feedbackId: 'task_status',
 				options: {
-					icons: true,
+					icons: false,
 					timeline: timeline.id,
+					playfg: feedbacksSettings.colors.task.play.fg,
+					playbg: feedbacksSettings.colors.task.play.bg,
+					pausefg: feedbacksSettings.colors.task.pause.fg,
+					pausebg: feedbacksSettings.colors.task.pause.bg,
+					stopfg: feedbacksSettings.colors.task.stop.fg,
+					stopbg: feedbacksSettings.colors.task.stop.bg
 				},
 			},
 		],
@@ -42,7 +50,7 @@ const buildPresets = (timeline) => {
 		type: 'button',
 		name: 'Pause ' + timeline.label,
 		style: {
-			text: 'Pause\\n' + timeline.label + '\\n',
+			text: timeline.label,
 			size: '14',
 			color: 0xffffff,
 			bgcolor: 0x000000,
@@ -64,8 +72,14 @@ const buildPresets = (timeline) => {
 			{
 				feedbackId: 'task_status',
 				options: {
-					icons: true,
+					icons: false,
 					timeline: timeline.id,
+					playfg: feedbacksSettings.colors.task.play.fg,
+					playbg: feedbacksSettings.colors.task.play.bg,
+					pausefg: feedbacksSettings.colors.task.pause.fg,
+					pausebg: feedbacksSettings.colors.task.pause.bg,
+					stopfg: feedbacksSettings.colors.task.stop.fg,
+					stopbg: feedbacksSettings.colors.task.stop.bg
 				},
 			},
 		],
@@ -78,7 +92,7 @@ const buildPresets = (timeline) => {
 			type: 'button',
 			name: 'Kill ' + timeline.label,
 			style: {
-				text: 'Kill\\n' + timeline.label + '\\n',
+				text: timeline.label,
 				size: '14',
 				color: 0xffffff,
 				bgcolor: 0x000000,
@@ -100,8 +114,14 @@ const buildPresets = (timeline) => {
 				{
 					feedbackId: 'task_status',
 					options: {
-						icons: true,
+						icons: false,
 						timeline: timeline.id,
+						playfg: feedbacksSettings.colors.task.play.fg,
+						playbg: feedbacksSettings.colors.task.play.bg,
+						pausefg: feedbacksSettings.colors.task.pause.fg,
+						pausebg: feedbacksSettings.colors.task.pause.bg,
+						stopfg: feedbacksSettings.colors.task.stop.fg,
+						stopbg: feedbacksSettings.colors.task.stop.bg
 					},
 				},
 			],
@@ -113,7 +133,7 @@ const buildPresets = (timeline) => {
 		type: 'button',
 		name: 'Toggle run ' + timeline.label,
 		style: {
-			text: 'Toggle\\n' + timeline.label + '\\n',
+			text: timeline.label,
 			size: '14',
 			color: 0xffffff,
 			bgcolor: 0x000000,
@@ -135,8 +155,14 @@ const buildPresets = (timeline) => {
 			{
 				feedbackId: 'task_status',
 				options: {
-					icons: true,
+					icons: false,
 					timeline: timeline.id,
+					playfg: feedbacksSettings.colors.task.play.fg,
+					playbg: feedbacksSettings.colors.task.play.bg,
+					pausefg: feedbacksSettings.colors.task.pause.fg,
+					pausebg: feedbacksSettings.colors.task.pause.bg,
+					stopfg: feedbacksSettings.colors.task.stop.fg,
+					stopbg: feedbacksSettings.colors.task.stop.bg
 				},
 			},
 		],

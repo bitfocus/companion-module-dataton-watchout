@@ -18,9 +18,9 @@ const getFeedbacks = (self) => {
 			},
 			{
 				type: 'checkbox',
-				label: 'Use icon instead of colors',
+				label: 'Use icons instead of colors',
 				id: 'icons',
-				default: true,
+				default: false,
 			},
 			{
 				// Play FG
@@ -133,7 +133,7 @@ const getFeedbacks = (self) => {
 			},
 			{
 				type: 'checkbox',
-				label: 'Use icon instead of colors',
+				label: 'Use icons instead of colors',
 				id: 'icons',
 				default: false,
 			},
@@ -194,7 +194,7 @@ const getFeedbacks = (self) => {
 			},
 			{
 				type: 'checkbox',
-				label: 'Use icon instead of colors',
+				label: 'Use icons instead of colors',
 				id: 'icons',
 				default: false,
 			},

@@ -4,6 +4,7 @@ const ActionDefinitions = require('./actions')
 const FeedbackDefinitions = require('./feedbacks')
 const VariableDefinitions = require('./variables')
 const { PresetDefinitions, buildPresets } = require('./presets')
+const { messagesRegex } = require('./constants')
 
 class WatchoutProductionInstance extends InstanceBase {
 	constructor(internal) {
@@ -223,9 +224,7 @@ class WatchoutProductionInstance extends InstanceBase {
 
 				while (this.messageBuffer.length > 0) {
 					// try to get messages from the buffer
-					let message = this.messageBuffer.match(
-						/(?<=\r\n|^)(Ready|Busy|Reply|Error|Status) (.*?)(?=(\r\nReady|\r\nBusy|\r\nReply|\r\nError|\r\nStatus)|$)/s
-					)
+					let message = this.messageBuffer.match(messagesRegex.watchoutReply)
 					if (!Array.isArray(message) || message.length < 3) return
 					let type = message[1]
 					let content = message[2]
@@ -324,7 +323,7 @@ class WatchoutProductionInstance extends InstanceBase {
 		} else if (type === 'Status') {
 			// Maybe it's a task status update message
 			//let taskStatusMatches = [...data.matchAll(this.regex.taskStatus)] // We should get only one match but let's keep it safe
-			let match = data.match(/"TaskList:mItemList:mItems:TimelineTask \\"([^\"]*)\\"" (0|1|2) (\d+) (\d+)/)
+			let match = data.match(messagesRegex.taskStatus)
 			if (Array.isArray(match)) {
 				if (this.taskData.hasOwnProperty(match[1])) {
 					this.taskData[match[1]].status = match[2]
@@ -346,7 +345,7 @@ class WatchoutProductionInstance extends InstanceBase {
 				//continue;
 			}
 			// Maybe it's a general status update message
-			let generalStatusMatches = [...data.matchAll(this.regex.generalStatus)] // We should get only one match but let's keep it safe
+			let generalStatusMatches = [...data.matchAll(messagesRegex.generalStatus)] // We should get only one match but let's keep it safe
 			if (generalStatusMatches.length > 0) {
 				// Should be a single line/match
 				for (const match of generalStatusMatches) {

@@ -250,11 +250,11 @@ const ActionDefinitions = (self) => {
 		},
 		layerCond: {
 			name: 'Set Layer Conditions',
-			options: choicesConditions(this.maxConditions),
+			options: choicesConditions(30),
 			callback: (action) => {
 				let cmd = ''
 				let cond = 0
-				for (let i = 0; i < this.maxConditions; i++) {
+				for (let i = 0; i < 30; i++) {
 					if (action.options[i] === true) {
 						cond += 2 ** i
 					}
@@ -264,7 +264,7 @@ const ActionDefinitions = (self) => {
 					cond = 2 ** 30
 				}
 				// A value equal to 0 tells Watchout to apply default conditions (the ones set in the producer GUI, before TCP commands)
-				if (action.options[`${this.maxConditions}`] === true) {
+				if (action.options[`${30}`] === true) {
 					cond = 0
 				}
 				cmd = 'enableLayerCond ' + cond + '\r\n'

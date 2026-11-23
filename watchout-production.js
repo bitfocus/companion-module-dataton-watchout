@@ -491,4 +491,4 @@ class WatchoutProductionInstance extends InstanceBase {
 	}
 }
 
-runEntrypoint(WatchoutProductionInstance, UpgradeScripts)
+runEntrypoint(WatchoutProductionInstance, UpgradeScripts())
